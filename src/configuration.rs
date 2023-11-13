@@ -22,6 +22,15 @@ impl DatabaseSettings {
             self.username, self.password, self.host, self.port, self.database_name
         )
     }
+
+    /// Omitting the database name connects to the Postgres instance, not a specific logical database.
+    /// This is useful for operations that create or drop databases.
+    pub fn connection_string_without_db(&self) -> String {
+        format!(
+            "postgres://{}:{}@{}:{}",
+            self.username, self.password, self.host, self.port
+        )
+    }
 }
 
 pub fn get_configuration() -> Result<Settings, config::ConfigError> {
