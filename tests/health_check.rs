@@ -12,7 +12,7 @@ fn spawn_app() -> String {
 
     let assigned_port = tcp_listener.local_addr().unwrap().port();
 
-    let server = lettre::run(tcp_listener).expect("Failed to bind address");
+    let server = lettre::startup::run(tcp_listener).expect("Failed to bind address");
 
     // Launch the server as a background task
     let _ = tokio::spawn(server);

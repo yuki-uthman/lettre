@@ -1,4 +1,4 @@
-use lettre::run;
+use lettre::startup::run;
 use std::net::TcpListener;
 
 #[tokio::main]
