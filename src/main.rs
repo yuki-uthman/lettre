@@ -1,6 +1,6 @@
 use lettre::configuration::get_configuration;
 use lettre::startup::run;
-use sqlx::{PgPool};
+use sqlx::PgPool;
 use std::net::TcpListener;
 
 #[tokio::main]

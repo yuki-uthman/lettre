@@ -1,10 +1,9 @@
 //! src/routes/subscriptions.rs
-use std::fmt::Display;
-
 use actix_web::http::{header::ContentType, StatusCode};
 use actix_web::{error::ResponseError, web, HttpResponse, Result};
 use chrono::Utc;
 use sqlx::PgPool;
+use std::fmt::Display;
 use uuid::Uuid;
 
 #[derive(Debug)]
@@ -41,7 +40,10 @@ pub struct Subscriber {
     name: String,
 }
 
-pub async fn subscribe(form: web::Form<Subscriber>, pool: web::Data<PgPool>) -> Result<HttpResponse> {
+pub async fn subscribe(
+    form: web::Form<Subscriber>,
+    pool: web::Data<PgPool>,
+) -> Result<HttpResponse> {
     sqlx::query!(
         r#"
     INSERT INTO subscriptions (id, email, name, subscribed_at)
