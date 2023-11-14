@@ -1,4 +1,5 @@
 //! src/configuration.rs
+use secrecy::{ExposeSecret, Secret};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -9,27 +10,34 @@ pub struct Settings {
 #[derive(Deserialize)]
 pub struct DatabaseSettings {
     pub username: String,
-    pub password: String,
+    pub password: Secret<String>,
     pub port: u16,
     pub host: String,
     pub database_name: String,
 }
 
 impl DatabaseSettings {
-    pub fn connection_string(&self) -> String {
-        format!(
+    pub fn connection_string(&self) -> Secret<String> {
+        Secret::new(format!(
             "postgres://{}:{}@{}:{}/{}",
-            self.username, self.password, self.host, self.port, self.database_name
-        )
+            self.username,
+            self.password.expose_secret(),
+            self.host,
+            self.port,
+            self.database_name
+        ))
     }
 
     /// Omitting the database name connects to the Postgres instance, not a specific logical database.
     /// This is useful for operations that create or drop databases.
-    pub fn connection_string_without_db(&self) -> String {
-        format!(
+    pub fn connection_string_without_db(&self) -> Secret<String> {
+        Secret::new(format!(
             "postgres://{}:{}@{}:{}",
-            self.username, self.password, self.host, self.port
-        )
+            self.username,
+            self.password.expose_secret(),
+            self.host,
+            self.port
+        ))
     }
 }
 

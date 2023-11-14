@@ -2,6 +2,7 @@
 use lettre::configuration::get_configuration;
 use lettre::telemetry::{get_subscriber, init_subscriber};
 use once_cell::sync::Lazy;
+use secrecy::ExposeSecret;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use std::net::TcpListener;
 use uuid::Uuid;
@@ -48,9 +49,14 @@ async fn setup_database() -> PgPool {
     config.database.database_name = Uuid::new_v4().to_string();
 
     // Create database
-    let mut connection = PgConnection::connect(&config.database.connection_string_without_db())
-        .await
-        .expect("Failed to connect to Postgres");
+    let mut connection = PgConnection::connect(
+        config
+            .database
+            .connection_string_without_db()
+            .expose_secret(),
+    )
+    .await
+    .expect("Failed to connect to Postgres");
     connection
         .execute(&*format!(
             r#"CREATE DATABASE "{}";"#,
@@ -60,7 +66,7 @@ async fn setup_database() -> PgPool {
         .expect("Failed to create database.");
 
     // Migrate database
-    let connection_pool = PgPool::connect(&config.database.connection_string())
+    let connection_pool = PgPool::connect(config.database.connection_string().expose_secret())
         .await
         .expect("Failed to connect to Postgres.");
     sqlx::migrate!("./migrations")

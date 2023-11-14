@@ -1,6 +1,7 @@
 use lettre::configuration::get_configuration;
 use lettre::startup::run;
 use lettre::telemetry::{get_subscriber, init_subscriber};
+use secrecy::ExposeSecret;
 use sqlx::PgPool;
 use std::net::TcpListener;
 
@@ -13,7 +14,7 @@ async fn main() -> std::io::Result<()> {
 
     let address = format!("127.0.0.1:{}", config.application_port);
     let tcp_listener = TcpListener::bind(address).expect("Failed to bind port");
-    let connection = PgPool::connect(&config.database.connection_string())
+    let connection = PgPool::connect(config.database.connection_string().expose_secret())
         .await
         .expect("Failed to connect to Postgres.");
 
