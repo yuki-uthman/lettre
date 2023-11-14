@@ -4,6 +4,7 @@ use actix_web::{error::ResponseError, web, HttpResponse, Result};
 use chrono::Utc;
 use sqlx::PgPool;
 use std::fmt::Display;
+use tracing::Instrument;
 use uuid::Uuid;
 
 #[derive(Debug)]
@@ -45,12 +46,14 @@ pub async fn subscribe(
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse> {
     let request_id = Uuid::new_v4();
-    tracing::info!(
-        "{}: New subscriber! email: {}, name: {}",
-        request_id,
-        form.email,
-        form.name
+    let request_span = tracing::info_span!(
+        "New subscriber!",
+        %request_id,
+        subscriber_email = %form.email,
+        subscriber_name= %form.name
     );
+    let _request_span_guard = request_span.enter();
+    let query_span = tracing::info_span!("Saving new subscriber details in the database");
 
     sqlx::query!(
         r#"
@@ -63,12 +66,16 @@ pub async fn subscribe(
         Utc::now()
     )
     .execute(pool.as_ref())
+    .instrument(query_span)
     .await
     .map_err(|e| {
         tracing::error!("{}: Failed to execute query:\n{:#?}", request_id, e);
         Error::InternalError
     })?;
 
-    tracing::info!("{}: Saved new subscriber details in the database.", request_id);
+    tracing::info!(
+        "{}: Saved new subscriber details in the database.",
+        request_id
+    );
     Ok(HttpResponse::Ok().finish())
 }
