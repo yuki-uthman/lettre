@@ -1092,11 +1092,11 @@ dependencies = [
  "chrono",
  "config",
  "env_logger",
- "log",
  "reqwest",
  "serde 1.0.192",
  "sqlx",
  "tokio",
+ "tracing",
  "uuid",
 ]
 
