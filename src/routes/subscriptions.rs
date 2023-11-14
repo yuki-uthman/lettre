@@ -45,6 +45,16 @@ pub async fn subscribe(
     form: web::Form<Subscriber>,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse> {
+
+    insert_subscriber(&pool, &form).await.map_err(|e| {
+        tracing::error!("Failed to execute query:\n{:#?}", e);
+        Error::InternalError
+    })?;
+
+    Ok(HttpResponse::Ok().finish())
+}
+
+async fn insert_subscriber(pool: &PgPool, form: &Subscriber) -> Result<(), sqlx::Error> {
     let request_id = Uuid::new_v4();
     let request_span = tracing::info_span!(
         "New subscriber!",
@@ -65,17 +75,14 @@ pub async fn subscribe(
         form.name,
         Utc::now()
     )
-    .execute(pool.as_ref())
+    .execute(pool)
     .instrument(query_span)
-    .await
-    .map_err(|e| {
-        tracing::error!("{}: Failed to execute query:\n{:#?}", request_id, e);
-        Error::InternalError
-    })?;
+    .await?;
 
     tracing::info!(
         "{}: Saved new subscriber details in the database.",
         request_id
     );
-    Ok(HttpResponse::Ok().finish())
+
+    Ok(())
 }
