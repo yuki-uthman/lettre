@@ -14,10 +14,10 @@ uuid = { version = "0.8.1", features = ["v4"] }
 chrono = "0.4.15"
 
 [dependencies.sqlx]
-version = "0.5.7"
+version = "0.7.2"
 default-features = false
 features = [
-    "runtime-actix-rustls",
+    "runtime-tokio-rustls",
     "macros",
     "postgres",
     "uuid",
