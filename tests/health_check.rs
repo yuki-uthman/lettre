@@ -1,12 +1,21 @@
 //! tests/health_check.rs
 use lettre::configuration::get_configuration;
+use lettre::telemetry::{get_subscriber, init_subscriber};
+use once_cell::sync::Lazy;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use std::net::TcpListener;
 use uuid::Uuid;
 
+static TRACING: Lazy<()> = Lazy::new(|| {
+    let subscriber = get_subscriber("test".into(), "debug".into());
+    init_subscriber(subscriber);
+});
+
 /// Spin up an instance of our application
 /// and returns its address (i.e. http://localhost:XXXX)
 fn spawn_app(pool: PgPool) -> String {
+    Lazy::force(&TRACING);
+
     let localhost = "127.0.0.1";
 
     // binding to port 0 will trigger an OS scan for an available port
