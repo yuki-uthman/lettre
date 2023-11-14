@@ -44,6 +44,8 @@ pub async fn subscribe(
     form: web::Form<Subscriber>,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse> {
+    log::info!("New subscriber! email: {}, name: {}", form.email, form.name);
+
     sqlx::query!(
         r#"
     INSERT INTO subscriptions (id, email, name, subscribed_at)
@@ -57,9 +59,10 @@ pub async fn subscribe(
     .execute(pool.as_ref())
     .await
     .map_err(|e| {
-        println!("Failed to execute query: {}", e);
+        log::error!("Failed to execute query:\n{:#?}", e);
         Error::InternalError
     })?;
 
+    log::info!("Saved new subscriber details in the database.");
     Ok(HttpResponse::Ok().finish())
 }
