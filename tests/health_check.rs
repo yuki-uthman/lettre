@@ -7,8 +7,19 @@ use std::net::TcpListener;
 use uuid::Uuid;
 
 static TRACING: Lazy<()> = Lazy::new(|| {
-    let subscriber = get_subscriber("test".into(), "debug".into());
-    init_subscriber(subscriber);
+    let default_filter_level = "info".to_string();
+    let subscriber_name = "test".to_string();
+
+    // Set TEST_LOG=true to see logs during tests
+    // Use bunyan to format the logs nicely:
+    // $ TEST_LOG=true cargo test| bunyan
+    if std::env::var("TEST_LOG").is_ok() {
+        let subscriber = get_subscriber(subscriber_name, default_filter_level, std::io::stdout);
+        init_subscriber(subscriber);
+    } else {
+        let subscriber = get_subscriber(subscriber_name, default_filter_level, std::io::sink);
+        init_subscriber(subscriber);
+    };
 });
 
 /// Spin up an instance of our application
