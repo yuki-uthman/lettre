@@ -1,4 +1,5 @@
 //! src/routes/subscriptions.rs
+use crate::domain::Subscriber;
 use actix_web::http::{header::ContentType, StatusCode};
 use actix_web::{error::ResponseError, web, HttpResponse, Result};
 use chrono::Utc;
@@ -35,9 +36,9 @@ impl ResponseError for Error {
 
 #[allow(dead_code)]
 #[derive(serde::Deserialize)]
-pub struct Subscriber {
-    email: String,
-    name: String,
+pub struct SubscriberForm {
+    pub email: String,
+    pub name: String,
 }
 
 #[tracing::instrument(
@@ -49,10 +50,10 @@ pub struct Subscriber {
     )
 )]
 pub async fn subscribe(
-    form: web::Form<Subscriber>,
+    form: web::Form<SubscriberForm>,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse> {
-    insert_subscriber(&pool, &form)
+    insert_subscriber(&pool, &form.into())
         .await
         .map_err(|_| Error::InternalError)?;
 
@@ -70,8 +71,8 @@ async fn insert_subscriber(pool: &PgPool, form: &Subscriber) -> Result<(), sqlx:
     VALUES ($1, $2, $3, $4)
             "#,
         Uuid::new_v4(),
-        form.email,
-        form.name,
+        form.email.as_ref(),
+        form.name.as_ref(),
         Utc::now()
     )
     .execute(pool)
