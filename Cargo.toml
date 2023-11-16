@@ -18,6 +18,7 @@ tracing-bunyan-formatter = "0.3"
 tracing-log = "0.1"
 secrecy = { version = "0.8", features = ["serde"] }
 tracing-actix-web = "0.5"
+unicode-segmentation = "1.7.1"
 
 [dependencies.sqlx]
 version = "0.7.2"
