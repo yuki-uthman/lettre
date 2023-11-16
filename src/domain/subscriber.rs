@@ -17,7 +17,7 @@ impl TryFrom<Form<SubscriberForm>> for Subscriber {
 
     fn try_from(form: Form<SubscriberForm>) -> Result<Self, Self::Error> {
         Ok(Self {
-            email: SubscriberEmail::parse(form.email.to_owned()),
+            email: SubscriberEmail::parse(form.email.to_owned())?,
             name: SubscriberName::parse(form.name.to_owned())?,
         })
     }

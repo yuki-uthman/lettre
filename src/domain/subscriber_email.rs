@@ -1,12 +1,17 @@
 //! src/domain/subscriber_email.rs
 use serde::Deserialize;
+use validator::validate_email;
 
 #[derive(Debug, Deserialize)]
 pub struct SubscriberEmail(String);
 
 impl SubscriberEmail {
-    pub fn parse(s: String) -> Self {
-        Self(s)
+    pub fn parse(s: String) -> Result<Self, String> {
+        if validate_email(&s) {
+            Ok(Self(s))
+        } else {
+            Err(format!("{} is not a valid subscriber email.", s))
+        }
     }
 }
 
