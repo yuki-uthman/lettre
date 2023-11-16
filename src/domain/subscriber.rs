@@ -16,7 +16,8 @@ impl From<Form<SubscriberForm>> for Subscriber {
     fn from(form: Form<SubscriberForm>) -> Self {
         Self {
             email: SubscriberEmail::parse(form.email.to_owned()),
-            name: SubscriberName::parse(form.name.to_owned()),
+            name: SubscriberName::parse(form.name.to_owned())
+                .expect("Error parsing subscriber name"),
         }
     }
 }
