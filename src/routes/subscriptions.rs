@@ -21,7 +21,12 @@ pub struct SubscriberForm {
     )
 )]
 pub async fn subscribe(form: web::Form<SubscriberForm>, pool: web::Data<PgPool>) -> HttpResponse {
-    match insert_subscriber(&pool, &form.into()).await {
+    let subscriber = match Subscriber::try_from(form) {
+        Ok(subscriber) => subscriber,
+        Err(_) => return HttpResponse::BadRequest().finish(),
+    };
+
+    match insert_subscriber(&pool, &subscriber).await {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(_) => HttpResponse::InternalServerError().finish(),
     }

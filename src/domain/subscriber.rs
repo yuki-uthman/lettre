@@ -12,12 +12,13 @@ pub struct Subscriber {
     pub name: SubscriberName,
 }
 
-impl From<Form<SubscriberForm>> for Subscriber {
-    fn from(form: Form<SubscriberForm>) -> Self {
-        Self {
+impl TryFrom<Form<SubscriberForm>> for Subscriber {
+    type Error = String;
+
+    fn try_from(form: Form<SubscriberForm>) -> Result<Self, Self::Error> {
+        Ok(Self {
             email: SubscriberEmail::parse(form.email.to_owned()),
-            name: SubscriberName::parse(form.name.to_owned())
-                .expect("Error parsing subscriber name"),
-        }
+            name: SubscriberName::parse(form.name.to_owned())?,
+        })
     }
 }
