@@ -1,6 +1,6 @@
 //! tests/health_check.rs
-use lettre::configuration::get_configuration;
-use lettre::telemetry::{get_subscriber, init_subscriber};
+use letter::configuration::get_configuration;
+use letter::telemetry::{get_subscriber, init_subscriber};
 use once_cell::sync::Lazy;
 use secrecy::ExposeSecret;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
@@ -36,7 +36,7 @@ fn spawn_app(pool: PgPool) -> String {
 
     let assigned_port = tcp_listener.local_addr().unwrap().port();
 
-    let server = lettre::startup::run(tcp_listener, pool).expect("Failed to bind address");
+    let server = letter::startup::run(tcp_listener, pool).expect("Failed to bind address");
 
     // Launch the server as a background task
     let _ = tokio::spawn(server);
