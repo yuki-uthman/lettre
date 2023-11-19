@@ -8,9 +8,10 @@ use email::{EmailBuilder, EmailClient, Person};
 mod secret;
 use secret::BrevoSecret;
 
+#[derive(Debug)]
 pub struct Brevo {
-    pub sender: Person,
-    pub email_client: EmailClient,
+    sender: Person,
+    email_client: EmailClient,
 }
 
 impl Brevo {
@@ -28,6 +29,10 @@ impl Brevo {
             api_key: brevo_secret.api_key.clone(),
         };
 
+        Self::new(sender, email_client)
+    }
+
+    fn new(sender: Person, email_client: EmailClient) -> Self {
         Self {
             sender,
             email_client,
