@@ -1,4 +1,5 @@
 use letter::configuration::get_configuration;
+use letter::email::Brevo;
 use letter::startup::run;
 use letter::telemetry::{get_subscriber, init_subscriber};
 use secrecy::ExposeSecret;
@@ -17,5 +18,7 @@ async fn main() -> std::io::Result<()> {
     let connection = PgPool::connect_lazy(config.database.connection_string().expose_secret())
         .expect("Failed to connect to Postgres.");
 
-    run(tcp_listener, connection)?.await
+    let email_client = Brevo::with_secret(".secret");
+
+    run(tcp_listener, connection, email_client)?.await
 }
