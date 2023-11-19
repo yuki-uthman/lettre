@@ -1,5 +1,6 @@
 //! tests/health_check.rs
 use letter::configuration::get_configuration;
+use letter::email::Brevo;
 use letter::telemetry::{get_subscriber, init_subscriber};
 use once_cell::sync::Lazy;
 use secrecy::ExposeSecret;
@@ -36,7 +37,9 @@ fn spawn_app(pool: PgPool) -> String {
 
     let assigned_port = tcp_listener.local_addr().unwrap().port();
 
-    let server = letter::startup::run(tcp_listener, pool).expect("Failed to bind address");
+    let email_client = Brevo::with_secret(".secret");
+    let server =
+        letter::startup::run(tcp_listener, pool, email_client).expect("Failed to bind address");
 
     // Launch the server as a background task
     let _ = tokio::spawn(server);
