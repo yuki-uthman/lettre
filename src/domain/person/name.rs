@@ -2,12 +2,25 @@
 use serde::{Deserialize, Serialize};
 use unicode_segmentation::UnicodeSegmentation;
 
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("A name must not be empty")]
+    Empty,
+    #[error("A name must not be more than 256 graphemes long")]
+    TooLong,
+    #[error("A name must not contain any of the following characters: '/' '(' ')' '\"' '<' '>' '\\' '{{' '}}'")]
+    InvalidCharacters,
+}
+
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Name(String);
 
 impl Name {
-    pub fn parse(s: String) -> Result<Self, String> {
+    pub fn parse(s: String) -> Result<Self, Error> {
         let is_empty_or_whitespace = s.trim().is_empty();
+        if is_empty_or_whitespace {
+            return Err(Error::Empty);
+        }
 
         // A grapheme is defined by the Unicode standard as a "user-perceived"
         // character: `å` is a single grapheme, but it is composed of two characters
@@ -17,21 +30,19 @@ impl Name {
         // `true` specifies that we want to use the extended grapheme definition set,
         // the recommended one.
         let is_too_long = s.graphemes(true).count() > 256;
+        if is_too_long {
+            return Err(Error::TooLong);
+        }
 
         // Iterate over all characters in the input `s` to check if any of them matches
         // one of the characters in the forbidden array.
         let forbidden_characters = ['/', '(', ')', '"', '<', '>', '\\', '{', '}'];
         let contains_forbidden_characters = s.chars().any(|g| forbidden_characters.contains(&g));
-
-        if is_empty_or_whitespace || is_too_long || contains_forbidden_characters {
-            Err(format!(
-                "Invalid subscriber name: '{}'. A subscriber name must not be empty \
-                or more than 256 graphemes long and must not contain the following characters: {:?}",
-                s, forbidden_characters
-            ))
-        } else {
-            Ok(Self(s))
+        if contains_forbidden_characters {
+            return Err(Error::InvalidCharacters);
         }
+
+        Ok(Self(s))
     }
 }
 

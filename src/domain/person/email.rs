@@ -2,15 +2,27 @@
 use serde::{Deserialize, Serialize};
 use validator::validate_email;
 
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("Empty email")]
+    Empty,
+    #[error("{0}")]
+    Invalid(String),
+}
+
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Email(String);
 
 impl Email {
-    pub fn parse(s: String) -> Result<Self, String> {
+    pub fn parse(s: String) -> Result<Self, Error> {
+        if s.is_empty() {
+            return Err(Error::Empty);
+        }
+
         if validate_email(&s) {
             Ok(Self(s))
         } else {
-            Err(format!("{} is not a valid subscriber email.", s))
+            Err(Error::Invalid(format!("Invalid email: {}", s)))
         }
     }
 }
