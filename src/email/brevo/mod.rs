@@ -41,7 +41,7 @@ impl Brevo {
     }
 
     pub fn email_builder(&self) -> EmailBuilder {
-        EmailBuilder::new(self.sender.clone())
+        EmailBuilder::new(&self.sender)
     }
 
     pub async fn send_email<T>(&self, email: &T) -> Result<(), reqwest::Error>

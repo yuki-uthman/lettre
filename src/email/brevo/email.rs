@@ -6,26 +6,27 @@ use serde::Serialize;
 
 #[derive(Debug, Serialize)]
 pub struct Email<'a> {
-    sender: Person,
+    sender: &'a Person,
     pub to: Vec<&'a Person>,
     pub subject: &'a str,
     #[serde(rename = "htmlContent")]
     pub html_content: &'a str,
 }
 
-#[derive(Default)]
 pub struct EmailBuilder<'a> {
-    sender: Person,
+    sender: &'a Person,
     to: Vec<&'a Person>,
     subject: &'a str,
-    html_content: &'a str
+    html_content: &'a str,
 }
 
 impl<'a> EmailBuilder<'a> {
-    pub fn new(sender: Person) -> Self {
+    pub fn new(sender: &'a Person) -> Self {
         Self {
             sender,
-            ..Default::default()
+            to: vec![],
+            subject: "",
+            html_content: "",
         }
     }
 
@@ -112,7 +113,7 @@ mod tests {
             Person::parse(Faker.fake::<String>(), SafeEmail().fake::<String>()).unwrap();
         let subject = Sentence(1..2).fake::<String>();
         let html_content = Paragraph(1..10).fake::<String>();
-        let email = EmailBuilder::new(sender.clone())
+        let email = EmailBuilder::new(&sender)
             .to(&recipient)
             .subject(&subject)
             .html_content(&html_content)
