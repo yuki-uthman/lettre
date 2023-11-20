@@ -1,5 +1,5 @@
 //! src/routes/subscriptions.rs
-use crate::{domain::Subscriber, email::Brevo};
+use crate::{domain::Person, email::Brevo};
 use actix_web::{web, HttpResponse, Result};
 use chrono::Utc;
 use sqlx::PgPool;
@@ -25,7 +25,7 @@ pub async fn subscribe(
     pool: web::Data<PgPool>,
     email_client: web::Data<Brevo>,
 ) -> HttpResponse {
-    let subscriber = match Subscriber::try_from(form.into_inner()) {
+    let subscriber = match Person::try_from(form.into_inner()) {
         Ok(subscriber) => subscriber,
         Err(_) => return HttpResponse::BadRequest().finish(),
     };
@@ -52,7 +52,7 @@ pub async fn subscribe(
     name = "Saving new subscriber details in the database",
     skip(form, pool)
 )]
-async fn insert_subscriber(pool: &PgPool, form: &Subscriber) -> Result<(), sqlx::Error> {
+async fn insert_subscriber(pool: &PgPool, form: &Person) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"
     INSERT INTO subscriptions (id, email, name, subscribed_at)
