@@ -55,7 +55,24 @@ impl AsRef<str> for Name {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use claims::{assert_err, assert_ok};
+    use claims::assert_ok;
+    use colored::*;
+
+    macro_rules! matches {
+        ($expression:expr, $($pattern:tt)+) => {
+            match $expression {
+                $($pattern)+ => (),
+                ref e => {
+                    let right = stringify!($($pattern)+).green();
+                    let left = format!("{:?}", e).red();
+                    println!();
+                    println!("     {} =! {}", left, right);
+                    println!();
+                    panic!();
+                },
+            }
+        }
+    }
 
     #[test]
     fn a_256_grapheme_long_name_is_valid() {
@@ -66,26 +83,31 @@ mod tests {
     #[test]
     fn a_name_longer_than_256_graphemes_is_rejected() {
         let name = "a".repeat(257);
-        assert_err!(Name::parse(name));
+        let result = Name::parse(name);
+        matches!(result, Err(Error::TooLong));
     }
 
     #[test]
     fn whitespace_only_names_are_rejected() {
         let name = " ".to_string();
-        assert_err!(Name::parse(name));
+        let result = Name::parse(name);
+        matches!(result, Err(Error::Empty));
     }
 
     #[test]
     fn empty_string_is_rejected() {
         let name = "".to_string();
-        assert_err!(Name::parse(name));
+        let result = Name::parse(name);
+        matches!(result, Err(Error::Empty));
     }
 
     #[test]
     fn names_containing_an_invalid_character_are_rejected() {
         for name in &['/', '(', ')', '"', '<', '>', '\\', '{', '}'] {
             let name = name.to_string();
-            assert_err!(Name::parse(name));
+
+            let result = Name::parse(name);
+            matches!(result, Err(Error::InvalidCharacters));
         }
     }
 
