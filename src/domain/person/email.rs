@@ -1,8 +1,8 @@
 //! src/domain/email.rs
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use validator::validate_email;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Email(String);
 
 impl Email {

@@ -6,12 +6,21 @@ mod email;
 use email::Email;
 
 use crate::routes::SubscriberForm;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Person {
     pub name: Name,
     pub email: Email,
+}
+
+impl Person {
+    pub fn parse(name: String, email: String) -> Result<Self, String> {
+        Ok(Self {
+            name: Name::parse(name)?,
+            email: Email::parse(email)?,
+        })
+    }
 }
 
 impl TryFrom<SubscriberForm> for Person {

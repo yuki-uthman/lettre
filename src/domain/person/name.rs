@@ -1,8 +1,8 @@
 //! src/domain/name.rs
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use unicode_segmentation::UnicodeSegmentation;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Name(String);
 
 impl Name {
