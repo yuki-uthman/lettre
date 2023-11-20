@@ -24,30 +24,14 @@ static TRACING: Lazy<()> = Lazy::new(|| {
     };
 });
 
-/// Spin up an instance of our application
-/// and returns its address (i.e. http://localhost:XXXX)
-fn spawn_app(pool: PgPool) -> String {
-    Lazy::force(&TRACING);
-
-    let localhost = "127.0.0.1";
-
-    // binding to port 0 will trigger an OS scan for an available port
-    let tcp_listener =
-        TcpListener::bind(format!("{}:0", localhost)).expect("Failed to bind random port");
-
-    let assigned_port = tcp_listener.local_addr().unwrap().port();
-
-    let email_client = Brevo::with_secret(".secret");
-    let server =
-        letter::startup::run(tcp_listener, pool, email_client).expect("Failed to bind address");
-
-    // Launch the server as a background task
-    let _ = tokio::spawn(server);
-
-    format!("http://{}:{}", localhost, assigned_port)
+struct TestSetup {
+    pub address: String,
+    pub db_pool: PgPool,
 }
 
-async fn setup_database() -> PgPool {
+async fn setup() -> TestSetup {
+    Lazy::force(&TRACING);
+
     let mut config = get_configuration().expect("Failed to read configuration.");
     config.database.database_name = Uuid::new_v4().to_string();
 
@@ -69,26 +53,43 @@ async fn setup_database() -> PgPool {
         .expect("Failed to create database.");
 
     // Migrate database
-    let connection_pool = PgPool::connect(config.database.connection_string().expose_secret())
+    let db_pool = PgPool::connect(config.database.connection_string().expose_secret())
         .await
         .expect("Failed to connect to Postgres.");
     sqlx::migrate!("./migrations")
-        .run(&connection_pool)
+        .run(&db_pool)
         .await
         .expect("Failed to migrate the database");
 
-    connection_pool
+    let email_client = Brevo::from(config.email.unwrap());
+
+    let localhost = "127.0.0.1";
+
+    // binding to port 0 will trigger an OS scan for an available port
+    let tcp_listener =
+        TcpListener::bind(format!("{}:0", localhost)).expect("Failed to bind random port");
+
+    let assigned_port = tcp_listener.local_addr().unwrap().port();
+
+    let server = letter::startup::run(tcp_listener, db_pool.to_owned(), email_client)
+        .expect("Failed to bind address");
+
+    // Launch the server as a background task
+    let _ = tokio::spawn(server);
+
+    let address = format!("http://{}:{}", localhost, assigned_port);
+
+    TestSetup { address, db_pool }
 }
 
 #[tokio::test]
 async fn health_check_works() {
-    let conn = setup_database().await;
-    let address = spawn_app(conn);
+    let test = setup().await;
 
     let client = reqwest::Client::new();
 
     let response = client
-        .get(format!("{}/health_check", &address))
+        .get(format!("{}/health_check", &test.address))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -100,15 +101,14 @@ async fn health_check_works() {
 #[tokio::test]
 async fn subscribe_returns_a_200_for_valid_form_data() {
     // Arrange
-    let conn = setup_database().await;
-    let app_address = spawn_app(conn.clone());
+    let test = setup().await;
 
     let client = reqwest::Client::new();
 
     // Act
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
     let response = client
-        .post(&format!("{}/subscriptions", &app_address))
+        .post(&format!("{}/subscriptions", &test.address))
         .header("Content-Type", "application/x-www-form-urlencoded")
         .body(body)
         .send()
@@ -119,7 +119,7 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
     assert_eq!(200, response.status().as_u16());
 
     let saved = sqlx::query!("SELECT email, name FROM subscriptions",)
-        .fetch_one(&conn)
+        .fetch_one(&test.db_pool)
         .await
         .expect("Failed to fetch saved subscription.");
 
@@ -130,8 +130,7 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
 #[tokio::test]
 async fn subscribe_returns_a_400_when_data_is_missing() {
     // Arrange
-    let conn = setup_database().await;
-    let app_address = spawn_app(conn);
+    let test = setup().await;
     let client = reqwest::Client::new();
     let test_cases = vec![
         ("name=le%20guin", "missing the email"),
@@ -142,7 +141,7 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
     for (invalid_body, error_message) in test_cases {
         // Act
         let response = client
-            .post(&format!("{}/subscriptions", &app_address))
+            .post(&format!("{}/subscriptions", &test.address))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(invalid_body)
             .send()
@@ -163,8 +162,7 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
 #[tokio::test]
 async fn subscribe_returns_a_400_when_name_is_invalid() {
     // Arrange
-    let conn = setup_database().await;
-    let app_address = spawn_app(conn);
+    let test = setup().await;
     let client = reqwest::Client::new();
 
     let test_cases = vec![
@@ -178,7 +176,7 @@ async fn subscribe_returns_a_400_when_name_is_invalid() {
     for (invalid_body, error_message) in test_cases {
         // Act
         let response = client
-            .post(&format!("{}/subscriptions", &app_address))
+            .post(&format!("{}/subscriptions", &test.address))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(invalid_body)
             .send()
@@ -199,8 +197,7 @@ async fn subscribe_returns_a_400_when_name_is_invalid() {
 #[tokio::test]
 async fn subscribe_returns_a_400_when_email_is_invalid() {
     // Arrange
-    let conn = setup_database().await;
-    let app_address = spawn_app(conn);
+    let test = setup().await;
     let client = reqwest::Client::new();
 
     let test_cases = vec![
@@ -211,7 +208,7 @@ async fn subscribe_returns_a_400_when_email_is_invalid() {
     for (invalid_body, error_message) in test_cases {
         // Act
         let response = client
-            .post(&format!("{}/subscriptions", &app_address))
+            .post(&format!("{}/subscriptions", &test.address))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(invalid_body)
             .send()
