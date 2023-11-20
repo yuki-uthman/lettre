@@ -69,6 +69,12 @@ jobs:
 
       - name: Run tests
         run: cargo test
+        env:
+          APP_ENVIRONMENT: production
+          EMAIL_CLIENT_SENDER_NAME: ${{ secrets.EMAIL_CLIENT_SENDER_NAME }}
+          EMAIL_CLIENT_SENDER_EMAIL: ${{ secrets.EMAIL_CLIENT_SENDER_EMAIL }}
+          EMAIL_CLIENT_API_URL: ${{ secrets.EMAIL_CLIENT_API_URL }}
+          EMAIL_CLIENT_API_KEY: ${{ secrets.EMAIL_CLIENT_API_KEY }}
 
   # `fmt` container job
   fmt:
@@ -151,3 +157,9 @@ jobs:
         run: SKIP_DOCKER=true ./scripts/init_db.sh
       - name: Generate code coverage
         run: cargo install cargo-tarpaulin && cargo tarpaulin --verbose --workspace
+        env:
+          APP_ENVIRONMENT: production
+          EMAIL_CLIENT_SENDER_NAME: ${{ secrets.EMAIL_CLIENT_SENDER_NAME }}
+          EMAIL_CLIENT_SENDER_EMAIL: ${{ secrets.EMAIL_CLIENT_SENDER_EMAIL }}
+          EMAIL_CLIENT_API_URL: ${{ secrets.EMAIL_CLIENT_API_URL }}
+          EMAIL_CLIENT_API_KEY: ${{ secrets.EMAIL_CLIENT_API_KEY }}
