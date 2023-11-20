@@ -7,6 +7,7 @@ use serde::Deserialize;
 pub struct Settings {
     pub database: DatabaseSettings,
     pub application: ApplicationSettings,
+    pub email: Option<EmailSettings>,
 }
 
 #[derive(Deserialize)]
@@ -22,6 +23,14 @@ pub struct DatabaseSettings {
 pub struct ApplicationSettings {
     pub port: u16,
     pub host: String,
+}
+
+#[derive(Deserialize)]
+pub struct EmailSettings {
+    pub api_key: Secret<String>,
+    pub api_url: String,
+    pub sender_name: String,
+    pub sender_email: String,
 }
 
 impl DatabaseSettings {
@@ -49,6 +58,7 @@ impl DatabaseSettings {
     }
 }
 
+#[derive(PartialEq)]
 pub enum Environment {
     Local,
     Production,
@@ -92,5 +102,17 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
         .add_source(File::from(configuration_directory.join(environment.as_str())).required(true))
         .build()?;
 
-    settings.try_deserialize()
+    let mut settings: Settings = settings.try_deserialize()?;
+
+    if environment == Environment::Local {
+        let email_file_path = configuration_directory.join("email");
+        dotenvy::from_filename(email_file_path).expect("Failed to read email settings file");
+    }
+
+    let email_settings = envy::prefixed("EMAIL_CLIENT_")
+        .from_env::<EmailSettings>()
+        .expect("Failed to parse email settings from environment");
+    settings.email = Some(email_settings);
+
+    Ok(settings)
 }
