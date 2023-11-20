@@ -1,4 +1,5 @@
 //! src/configuration.rs
+use config::{Config, File};
 use secrecy::{ExposeSecret, Secret};
 use serde::Deserialize;
 
@@ -7,6 +8,7 @@ pub struct Settings {
     pub database: DatabaseSettings,
     pub application: ApplicationSettings,
 }
+
 #[derive(Deserialize)]
 pub struct DatabaseSettings {
     pub username: String,
@@ -75,11 +77,8 @@ impl TryFrom<String> for Environment {
 }
 
 pub fn get_configuration() -> Result<Settings, config::ConfigError> {
-    let mut settings = config::Config::default();
     let base_path = std::env::current_dir().expect("Failed to determine the current directory");
     let configuration_directory = base_path.join("configuration");
-
-    settings.merge(config::File::from(configuration_directory.join("base")).required(true))?;
 
     // Detect the running environment.
     // Default to `local` if not specified.
@@ -88,9 +87,10 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
         .try_into()
         .expect("Failed to parse APP_ENVIRONMENT.");
 
-    settings.merge(
-        config::File::from(configuration_directory.join(environment.as_str())).required(true),
-    )?;
+    let settings = Config::builder()
+        .add_source(File::from(configuration_directory.join("base")).required(true))
+        .add_source(File::from(configuration_directory.join(environment.as_str())).required(true))
+        .build()?;
 
-    settings.try_into()
+    settings.try_deserialize()
 }
