@@ -32,10 +32,7 @@ pub async fn subscribe(
 
     let email = email_client
         .email_builder()
-        .to(
-            subscriber.name.as_ref().to_string(),
-            subscriber.email.as_ref().to_string(),
-        )
+        .to(&subscriber)
         .subject("Welcome!".to_string())
         .html_content("<p>Thanks for subscribing to our newsletter!</p>".to_string())
         .build();

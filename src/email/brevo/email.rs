@@ -5,23 +5,23 @@ use secrecy::{ExposeSecret, Secret};
 use serde::Serialize;
 
 #[derive(Debug, Serialize)]
-pub struct Email {
+pub struct Email<'a> {
     sender: Person,
-    pub to: Vec<Person>,
+    pub to: Vec<&'a Person>,
     pub subject: String,
     #[serde(rename = "htmlContent")]
     pub html_content: String,
 }
 
 #[derive(Default)]
-pub struct EmailBuilder {
+pub struct EmailBuilder<'a> {
     sender: Person,
-    to: Vec<Person>,
+    to: Vec<&'a Person>,
     subject: String,
     html_content: String,
 }
 
-impl EmailBuilder {
+impl<'a> EmailBuilder<'a> {
     pub fn new(sender: Person) -> Self {
         Self {
             sender,
@@ -29,9 +29,7 @@ impl EmailBuilder {
         }
     }
 
-    pub fn to(mut self, name: String, email: String) -> Self {
-        let person = Person::parse(name, email).expect("Parsing person failed");
-
+    pub fn to(mut self, person: &'a Person) -> Self {
         self.to.push(person);
         self
     }
@@ -46,7 +44,7 @@ impl EmailBuilder {
         self
     }
 
-    pub fn build(self) -> Email {
+    pub fn build(self) -> Email<'a> {
         Email {
             sender: self.sender,
             to: self.to,
@@ -110,10 +108,12 @@ mod tests {
             api_key,
         };
 
+        let recipient =
+            Person::parse(Faker.fake::<String>(), SafeEmail().fake::<String>()).unwrap();
         let subject = Sentence(1..2).fake::<String>();
         let html_content = Paragraph(1..10).fake::<String>();
         let email = EmailBuilder::new(sender.clone())
-            .to(Faker.fake::<String>(), SafeEmail().fake::<String>())
+            .to(&recipient)
             .subject(subject.clone())
             .html_content(html_content.clone())
             .build();
