@@ -36,26 +36,45 @@ impl AsRef<str> for Email {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use claims::assert_err;
+    use colored::*;
     use fake::faker::internet::en::SafeEmail;
     use fake::Fake;
+
+    macro_rules! matches {
+        ($expression:expr, $($pattern:tt)+) => {
+            match $expression {
+                $($pattern)+ => (),
+                ref e => {
+                    let right = stringify!($($pattern)+).green();
+                    let left = format!("{:?}", e).red();
+                    println!();
+                    println!("     {} =! {}", left, right);
+                    println!();
+                    panic!();
+                },
+            }
+        }
+    }
 
     #[test]
     fn empty_string_is_rejected() {
         let email = "".to_string();
-        assert_err!(Email::parse(email));
+        let result = Email::parse(email);
+        matches!(result, Err(Error::Empty));
     }
 
     #[test]
     fn email_missing_at_symbol_is_rejected() {
         let email = "ursuladomain.com".to_string();
-        assert_err!(Email::parse(email));
+        let result = Email::parse(email);
+        matches!(result, Err(Error::Invalid(_)));
     }
 
     #[test]
     fn email_missing_subject_is_rejected() {
         let email = "@domain.com".to_string();
-        assert_err!(Email::parse(email));
+        let result = Email::parse(email);
+        matches!(result, Err(Error::Invalid(_)));
     }
 
     #[derive(Debug, Clone)]
