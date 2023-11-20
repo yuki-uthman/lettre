@@ -1,4 +1,5 @@
 //! src/email/brevo/mod.rs
+use crate::configuration::EmailSettings;
 use crate::domain::Person;
 use reqwest::Client;
 use serde::Serialize;
@@ -13,6 +14,23 @@ use secret::BrevoSecret;
 pub struct Brevo {
     sender: Person,
     email_client: EmailClient,
+}
+
+impl From<EmailSettings> for Brevo {
+    fn from(email_settings: EmailSettings) -> Self {
+        let name = email_settings.sender_name.clone();
+        let email = email_settings.sender_email.clone();
+
+        let sender = Person::parse(name, email).expect("Parsing person failed");
+
+        let email_client = EmailClient {
+            http_client: Client::new(),
+            url: email_settings.api_url.clone(),
+            api_key: email_settings.api_key.clone(),
+        };
+
+        Self::new(sender, email_client)
+    }
 }
 
 impl Brevo {
