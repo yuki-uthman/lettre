@@ -8,17 +8,17 @@ use serde::Serialize;
 pub struct Email<'a> {
     sender: Person,
     pub to: Vec<&'a Person>,
-    pub subject: String,
+    pub subject: &'a str,
     #[serde(rename = "htmlContent")]
-    pub html_content: String,
+    pub html_content: &'a str,
 }
 
 #[derive(Default)]
 pub struct EmailBuilder<'a> {
     sender: Person,
     to: Vec<&'a Person>,
-    subject: String,
-    html_content: String,
+    subject: &'a str,
+    html_content: &'a str
 }
 
 impl<'a> EmailBuilder<'a> {
@@ -34,12 +34,12 @@ impl<'a> EmailBuilder<'a> {
         self
     }
 
-    pub fn subject(mut self, subject: String) -> Self {
+    pub fn subject(mut self, subject: &'a str) -> Self {
         self.subject = subject;
         self
     }
 
-    pub fn html_content(mut self, html_content: String) -> Self {
+    pub fn html_content(mut self, html_content: &'a str) -> Self {
         self.html_content = html_content;
         self
     }
@@ -114,8 +114,8 @@ mod tests {
         let html_content = Paragraph(1..10).fake::<String>();
         let email = EmailBuilder::new(sender.clone())
             .to(&recipient)
-            .subject(subject.clone())
-            .html_content(html_content.clone())
+            .subject(&subject)
+            .html_content(&html_content)
             .build();
 
         Mock::given(any())
