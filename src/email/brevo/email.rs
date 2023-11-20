@@ -88,3 +88,47 @@ impl EmailClient {
         Ok(res)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use fake::faker::internet::en::SafeEmail;
+    use fake::faker::lorem::en::{Paragraph, Sentence};
+    use fake::{Fake, Faker};
+    use wiremock::matchers::any;
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    #[tokio::test]
+    async fn send_email_makes_http_request() {
+        // Arrange
+        let mock_server = MockServer::start().await;
+
+        let api_key = Secret::new(Faker.fake::<String>());
+        let sender = Person {
+            name: Faker.fake::<String>(),
+            email: SafeEmail().fake::<String>(),
+        };
+        let client = EmailClient {
+            http_client: Client::new(),
+            url: mock_server.uri(),
+            api_key,
+        };
+
+        let subject = Sentence(1..2).fake::<String>();
+        let html_content = Paragraph(1..10).fake::<String>();
+        let email = EmailBuilder::new(sender.clone())
+            .to(Faker.fake::<String>(), SafeEmail().fake::<String>())
+            .subject(subject.clone())
+            .html_content(html_content.clone())
+            .build();
+
+        Mock::given(any())
+            .respond_with(ResponseTemplate::new(200))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        // Act
+        let _ = client.send_email(&email).await;
+    }
+}
