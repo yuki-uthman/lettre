@@ -1,13 +1,8 @@
 //! src/email/email.rs
+use crate::domain::Person;
 use reqwest::Client;
 use secrecy::{ExposeSecret, Secret};
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct Person {
-    pub name: String,
-    pub email: String,
-}
+use serde::Serialize;
 
 #[derive(Debug, Serialize)]
 pub struct Email {
@@ -35,7 +30,7 @@ impl EmailBuilder {
     }
 
     pub fn to(mut self, name: String, email: String) -> Self {
-        let person = Person { name, email };
+        let person = Person::parse(name, email).expect("Parsing person failed");
 
         self.to.push(person);
         self
@@ -104,10 +99,11 @@ mod tests {
         let mock_server = MockServer::start().await;
 
         let api_key = Secret::new(Faker.fake::<String>());
-        let sender = Person {
-            name: Faker.fake::<String>(),
-            email: SafeEmail().fake::<String>(),
-        };
+
+        let name = Faker.fake::<String>();
+        let email = SafeEmail().fake::<String>();
+        let sender = Person::parse(name, email).expect("Parsing person failed");
+
         let client = EmailClient {
             http_client: Client::new(),
             url: mock_server.uri(),

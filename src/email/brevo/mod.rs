@@ -1,9 +1,10 @@
 //! src/email/brevo/mod.rs
+use crate::domain::Person;
 use reqwest::Client;
 use serde::Serialize;
 
 mod email;
-use email::{EmailBuilder, EmailClient, Person};
+use email::{EmailBuilder, EmailClient};
 
 mod secret;
 use secret::BrevoSecret;
@@ -18,10 +19,10 @@ impl Brevo {
     pub fn with_secret(filename: &str) -> Self {
         let brevo_secret = BrevoSecret::from_filename(filename);
 
-        let sender = Person {
-            name: brevo_secret.sender_name.clone(),
-            email: brevo_secret.sender_email.clone(),
-        };
+        let name = brevo_secret.sender_name.clone();
+        let email = brevo_secret.sender_email.clone();
+
+        let sender = Person::parse(name, email).expect("Parsing person failed");
 
         let email_client = EmailClient {
             http_client: Client::new(),
