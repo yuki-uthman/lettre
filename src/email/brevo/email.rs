@@ -89,7 +89,7 @@ mod tests {
     use fake::faker::internet::en::SafeEmail;
     use fake::faker::lorem::en::{Paragraph, Sentence};
     use fake::{Fake, Faker};
-    use wiremock::matchers::any;
+    use wiremock::matchers::{header, header_exists, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     #[tokio::test]
@@ -119,7 +119,11 @@ mod tests {
             .html_content(&html_content)
             .build();
 
-        Mock::given(any())
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header_exists("api-key"))
+            .and(header("accept", "application/json"))
+            .and(header("content-type", "application/json"))
             .respond_with(ResponseTemplate::new(200))
             .expect(1)
             .mount(&mock_server)
