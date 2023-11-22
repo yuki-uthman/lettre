@@ -29,6 +29,18 @@ pub struct TestSetup {
     pub db_pool: PgPool,
 }
 
+impl TestSetup {
+    pub async fn post(&self, path: &str, body: String) -> reqwest::Response {
+        reqwest::Client::new()
+            .post(&format!("{}{}", self.address, path))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(body)
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
+}
+
 pub async fn setup() -> TestSetup {
     Lazy::force(&TRACING);
 
