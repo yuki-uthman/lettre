@@ -1,14 +1,12 @@
 //! src/email/brevo/mod.rs
 use crate::configuration::EmailSettings;
 use crate::domain::Person;
-use reqwest::Client;
 use serde::Serialize;
 
 mod email;
 use email::{EmailBuilder, EmailClient};
 
 mod secret;
-use secret::BrevoSecret;
 
 #[derive(Debug)]
 pub struct Brevo {

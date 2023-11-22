@@ -1,6 +1,6 @@
+use letter::configuration::get_configuration;
 use letter::domain::Person;
 use letter::email::Brevo;
-use letter::configuration::get_configuration;
 
 #[tokio::main]
 async fn main() {
