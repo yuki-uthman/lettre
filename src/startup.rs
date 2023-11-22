@@ -9,15 +9,33 @@ use sqlx::PgPool;
 use std::net::TcpListener;
 use tracing_actix_web::TracingLogger;
 
-pub fn build(config: Settings) -> Result<Server, std::io::Error> {
+pub struct Application {
+    port: u16,
+    server: Server,
+}
+
+impl Application {
+    pub fn port(&self) -> u16 {
+        self.port
+    }
+
+    pub async fn run(self) -> std::io::Result<()> {
+        self.server.await
+    }
+}
+
+pub fn build(config: Settings) -> Result<Application, std::io::Error> {
     let address = format!("127.0.0.1:{}", config.application.port);
     let tcp_listener = TcpListener::bind(address).expect("Failed to bind port");
+    let port = tcp_listener.local_addr().unwrap().port();
     let connection = PgPool::connect_lazy(config.database.connection_string().expose_secret())
         .expect("Failed to connect to Postgres.");
 
     let email_client = Brevo::from(config.email.unwrap());
 
-    run(tcp_listener, connection, email_client)
+    let server = run(tcp_listener, connection, email_client)?;
+
+    Ok(Application { port, server })
 }
 
 pub fn run(
