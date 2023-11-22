@@ -57,12 +57,20 @@ impl<'a> EmailBuilder<'a> {
 
 #[derive(Debug)]
 pub struct EmailClient {
-    pub http_client: Client,
-    pub url: String,
-    pub api_key: Secret<String>,
+    http_client: Client,
+    url: String,
+    api_key: Secret<String>,
 }
 
 impl EmailClient {
+    pub fn new(url: String, api_key: Secret<String>) -> Self {
+        Self {
+            http_client: Client::new(),
+            url,
+            api_key,
+        }
+    }
+
     pub async fn send_email<T>(&self, email: &T) -> Result<reqwest::Response, reqwest::Error>
     where
         T: Serialize,

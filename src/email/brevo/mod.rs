@@ -23,11 +23,10 @@ impl From<EmailSettings> for Brevo {
 
         let sender = Person::parse(name, email).expect("Parsing person failed");
 
-        let email_client = EmailClient {
-            http_client: Client::new(),
-            url: email_settings.api_url.clone(),
-            api_key: email_settings.api_key.clone(),
-        };
+        let email_client = EmailClient::new(
+            email_settings.api_url.clone(),
+            email_settings.api_key.clone(),
+        );
 
         Self::new(sender, email_client)
     }
