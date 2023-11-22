@@ -222,4 +222,40 @@ mod tests {
         let result = client.send_email(&email).await;
         assert_err!(result);
     }
+
+    #[tokio::test]
+    async fn send_email_returns_err_if_server_takes_too_long() {
+        // Arrange
+        let mock_server = MockServer::start().await;
+
+        let api_key = Secret::new(Faker.fake::<String>());
+
+        let name = Faker.fake::<String>();
+        let email = SafeEmail().fake::<String>();
+        let sender = Person::parse(name, email).expect("Parsing person failed");
+
+        let client = EmailClient::new(mock_server.uri(), api_key);
+
+        let recipient =
+            Person::parse(Faker.fake::<String>(), SafeEmail().fake::<String>()).unwrap();
+        let subject = Sentence(1..2).fake::<String>();
+        let html_content = Paragraph(1..10).fake::<String>();
+        let email = EmailBuilder::new(&sender)
+            .to(&recipient)
+            .subject(&subject)
+            .html_content(&html_content)
+            .build();
+
+        let response = ResponseTemplate::new(200).set_delay(Duration::from_secs(10));
+
+        Mock::given(any())
+            .respond_with(response)
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        // Act
+        let result = client.send_email(&email).await;
+        assert_err!(result);
+    }
 }
