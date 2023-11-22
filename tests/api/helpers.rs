@@ -24,12 +24,12 @@ static TRACING: Lazy<()> = Lazy::new(|| {
     };
 });
 
-pub struct TestSetup {
+pub struct Test {
     pub address: String,
     pub db_pool: PgPool,
 }
 
-impl TestSetup {
+impl Test {
     pub async fn post(&self, path: &str, body: String) -> reqwest::Response {
         reqwest::Client::new()
             .post(&format!("{}{}", self.address, path))
@@ -41,7 +41,7 @@ impl TestSetup {
     }
 }
 
-pub async fn setup() -> TestSetup {
+pub async fn setup() -> Test {
     Lazy::force(&TRACING);
 
     let mut config = get_configuration().expect("Failed to read configuration.");
@@ -81,5 +81,5 @@ pub async fn setup() -> TestSetup {
     // Launch the server as a background task
     let _ = tokio::spawn(app.run());
 
-    TestSetup { address, db_pool }
+    Test { address, db_pool }
 }
