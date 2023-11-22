@@ -106,27 +106,32 @@ mod tests {
     use wiremock::matchers::{any, header, header_exists, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
+    fn subject() -> String {
+        Sentence(1..2).fake()
+    }
+
+    fn content() -> String {
+        Paragraph(1..10).fake()
+    }
+
+    fn person() -> Person {
+        Person::parse(Faker.fake(), SafeEmail().fake()).expect("Parsing person failed")
+    }
+
+    fn email_client(uri: &str) -> EmailClient {
+        EmailClient::new(uri.to_string(), Secret::new(Faker.fake::<String>()))
+    }
+
     #[tokio::test]
     async fn send_email_makes_http_request() {
         // Arrange
         let mock_server = MockServer::start().await;
+        let client = email_client(&mock_server.uri());
 
-        let api_key = Secret::new(Faker.fake::<String>());
-
-        let name = Faker.fake::<String>();
-        let email = SafeEmail().fake::<String>();
-        let sender = Person::parse(name, email).expect("Parsing person failed");
-
-        let client = EmailClient {
-            http_client: Client::new(),
-            url: mock_server.uri(),
-            api_key,
-        };
-
-        let recipient =
-            Person::parse(Faker.fake::<String>(), SafeEmail().fake::<String>()).unwrap();
-        let subject = Sentence(1..2).fake::<String>();
-        let html_content = Paragraph(1..10).fake::<String>();
+        let sender = person();
+        let recipient = person();
+        let subject = subject();
+        let html_content = content();
         let email = EmailBuilder::new(&sender)
             .to(&recipient)
             .subject(&subject)
@@ -151,23 +156,12 @@ mod tests {
     async fn send_email_returns_ok_with_200_response() {
         // Arrange
         let mock_server = MockServer::start().await;
+        let client = email_client(&mock_server.uri());
 
-        let api_key = Secret::new(Faker.fake::<String>());
-
-        let name = Faker.fake::<String>();
-        let email = SafeEmail().fake::<String>();
-        let sender = Person::parse(name, email).expect("Parsing person failed");
-
-        let client = EmailClient {
-            http_client: Client::new(),
-            url: mock_server.uri(),
-            api_key,
-        };
-
-        let recipient =
-            Person::parse(Faker.fake::<String>(), SafeEmail().fake::<String>()).unwrap();
-        let subject = Sentence(1..2).fake::<String>();
-        let html_content = Paragraph(1..10).fake::<String>();
+        let sender = person();
+        let recipient = person();
+        let subject = subject();
+        let html_content = content();
         let email = EmailBuilder::new(&sender)
             .to(&recipient)
             .subject(&subject)
@@ -189,23 +183,12 @@ mod tests {
     async fn send_email_returns_err_with_error_response() {
         // Arrange
         let mock_server = MockServer::start().await;
+        let client = email_client(&mock_server.uri());
 
-        let api_key = Secret::new(Faker.fake::<String>());
-
-        let name = Faker.fake::<String>();
-        let email = SafeEmail().fake::<String>();
-        let sender = Person::parse(name, email).expect("Parsing person failed");
-
-        let client = EmailClient {
-            http_client: Client::new(),
-            url: mock_server.uri(),
-            api_key,
-        };
-
-        let recipient =
-            Person::parse(Faker.fake::<String>(), SafeEmail().fake::<String>()).unwrap();
-        let subject = Sentence(1..2).fake::<String>();
-        let html_content = Paragraph(1..10).fake::<String>();
+        let sender = person();
+        let recipient = person();
+        let subject = subject();
+        let html_content = content();
         let email = EmailBuilder::new(&sender)
             .to(&recipient)
             .subject(&subject)
@@ -227,19 +210,12 @@ mod tests {
     async fn send_email_returns_err_if_server_takes_too_long() {
         // Arrange
         let mock_server = MockServer::start().await;
+        let client = email_client(&mock_server.uri());
 
-        let api_key = Secret::new(Faker.fake::<String>());
-
-        let name = Faker.fake::<String>();
-        let email = SafeEmail().fake::<String>();
-        let sender = Person::parse(name, email).expect("Parsing person failed");
-
-        let client = EmailClient::new(mock_server.uri(), api_key);
-
-        let recipient =
-            Person::parse(Faker.fake::<String>(), SafeEmail().fake::<String>()).unwrap();
-        let subject = Sentence(1..2).fake::<String>();
-        let html_content = Paragraph(1..10).fake::<String>();
+        let sender = person();
+        let recipient = person();
+        let subject = subject();
+        let html_content = content();
         let email = EmailBuilder::new(&sender)
             .to(&recipient)
             .subject(&subject)
