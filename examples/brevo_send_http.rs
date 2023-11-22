@@ -1,9 +1,11 @@
 use letter::domain::Person;
 use letter::email::Brevo;
+use letter::configuration::get_configuration;
 
 #[tokio::main]
 async fn main() {
-    let brevo = Brevo::with_secret(".secret");
+    let config = get_configuration().expect("Failed to read configuration.");
+    let brevo = Brevo::from(config.email.unwrap());
 
     let time = chrono::Local::now().format("%Y-%m-%d %H:%M").to_string();
     let recipient = Person::parse("Yuki".to_string(), "yuki07yuki@gmail.com".to_string()).unwrap();

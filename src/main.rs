@@ -18,7 +18,7 @@ async fn main() -> std::io::Result<()> {
     let connection = PgPool::connect_lazy(config.database.connection_string().expose_secret())
         .expect("Failed to connect to Postgres.");
 
-    let email_client = Brevo::with_secret(".secret");
+    let email_client = Brevo::from(config.email.unwrap());
 
     run(tcp_listener, connection, email_client)?.await
 }
