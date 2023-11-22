@@ -63,7 +63,7 @@ pub struct EmailClient {
 }
 
 impl EmailClient {
-    pub async fn send_email<T>(&self, email: &T) -> Result<serde_json::Value, reqwest::Error>
+    pub async fn send_email<T>(&self, email: &T) -> Result<reqwest::Response, reqwest::Error>
     where
         T: Serialize,
     {
@@ -75,8 +75,6 @@ impl EmailClient {
             .header("content-type", "application/json")
             .json(&email)
             .send()
-            .await?
-            .json::<serde_json::Value>()
             .await?;
 
         Ok(res)
@@ -86,10 +84,11 @@ impl EmailClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use claims::assert_ok;
     use fake::faker::internet::en::SafeEmail;
     use fake::faker::lorem::en::{Paragraph, Sentence};
     use fake::{Fake, Faker};
-    use wiremock::matchers::{header, header_exists, method, path};
+    use wiremock::matchers::{any, header, header_exists, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     #[tokio::test]
@@ -131,5 +130,43 @@ mod tests {
 
         // Act
         let _ = client.send_email(&email).await;
+    }
+
+    #[tokio::test]
+    async fn send_email_returns_ok_with_200_response() {
+        // Arrange
+        let mock_server = MockServer::start().await;
+
+        let api_key = Secret::new(Faker.fake::<String>());
+
+        let name = Faker.fake::<String>();
+        let email = SafeEmail().fake::<String>();
+        let sender = Person::parse(name, email).expect("Parsing person failed");
+
+        let client = EmailClient {
+            http_client: Client::new(),
+            url: mock_server.uri(),
+            api_key,
+        };
+
+        let recipient =
+            Person::parse(Faker.fake::<String>(), SafeEmail().fake::<String>()).unwrap();
+        let subject = Sentence(1..2).fake::<String>();
+        let html_content = Paragraph(1..10).fake::<String>();
+        let email = EmailBuilder::new(&sender)
+            .to(&recipient)
+            .subject(&subject)
+            .html_content(&html_content)
+            .build();
+
+        Mock::given(any())
+            .respond_with(ResponseTemplate::new(200))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        // Act
+        let result = client.send_email(&email).await;
+        assert_ok!(result);
     }
 }
