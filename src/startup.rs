@@ -1,11 +1,24 @@
 //! src/startup.rs
+use crate::configuration::Settings;
 use crate::email::Brevo;
 use crate::routes::{health_check, subscribe};
 use actix_web::dev::Server;
 use actix_web::{web, App, HttpServer};
+use secrecy::ExposeSecret;
 use sqlx::PgPool;
 use std::net::TcpListener;
 use tracing_actix_web::TracingLogger;
+
+pub fn build(config: Settings) -> Result<Server, std::io::Error> {
+    let address = format!("127.0.0.1:{}", config.application.port);
+    let tcp_listener = TcpListener::bind(address).expect("Failed to bind port");
+    let connection = PgPool::connect_lazy(config.database.connection_string().expose_secret())
+        .expect("Failed to connect to Postgres.");
+
+    let email_client = Brevo::from(config.email.unwrap());
+
+    run(tcp_listener, connection, email_client)
+}
 
 pub fn run(
     listener: TcpListener,

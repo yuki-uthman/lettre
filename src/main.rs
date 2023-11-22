@@ -1,10 +1,6 @@
 use letter::configuration::get_configuration;
-use letter::email::Brevo;
-use letter::startup::run;
+use letter::startup::build;
 use letter::telemetry::{get_subscriber, init_subscriber};
-use secrecy::ExposeSecret;
-use sqlx::PgPool;
-use std::net::TcpListener;
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
@@ -12,13 +8,7 @@ async fn main() -> std::io::Result<()> {
     init_subscriber(subscriber);
 
     let config = get_configuration().expect("Failed to read configuration.");
+    let server = build(config);
 
-    let address = format!("127.0.0.1:{}", config.application.port);
-    let tcp_listener = TcpListener::bind(address).expect("Failed to bind port");
-    let connection = PgPool::connect_lazy(config.database.connection_string().expose_secret())
-        .expect("Failed to connect to Postgres.");
-
-    let email_client = Brevo::from(config.email.unwrap());
-
-    run(tcp_listener, connection, email_client)?.await
+    server?.await
 }
