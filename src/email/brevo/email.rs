@@ -3,6 +3,7 @@ use crate::domain::Person;
 use reqwest::Client;
 use secrecy::{ExposeSecret, Secret};
 use serde::Serialize;
+use std::time::Duration;
 
 #[derive(Debug, Serialize)]
 pub struct Email<'a> {
@@ -64,8 +65,13 @@ pub struct EmailClient {
 
 impl EmailClient {
     pub fn new(url: String, api_key: Secret<String>) -> Self {
+        let http_client = Client::builder()
+            .timeout(Duration::from_secs(10))
+            .build()
+            .expect("Failed to build reqwest::Client");
+
         Self {
-            http_client: Client::new(),
+            http_client,
             url,
             api_key,
         }
