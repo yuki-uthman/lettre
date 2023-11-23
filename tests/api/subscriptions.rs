@@ -48,6 +48,44 @@ async fn subscribe_sends_email_for_valid_form_data() {
 }
 
 #[tokio::test]
+async fn subscribe_sends_email_with_a_link() {
+    // Arrange
+    let test = setup().await;
+
+    Mock::given(any())
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&test.email_server)
+        .await;
+
+    // Act
+    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+    let _ = test.post("/subscriptions", body.into()).await;
+
+    #[derive(serde::Deserialize)]
+    struct Email {
+        #[serde(rename = "htmlContent")]
+        html_content: String,
+    }
+
+    // Assert
+    let email_request = &test.email_server.received_requests().await.unwrap()[0];
+    let email: Email = serde_json::from_slice(&email_request.body).unwrap();
+
+    let assert_link = |s: &str| {
+        let links: Vec<_> = linkify::LinkFinder::new()
+            .links(s)
+            .filter(|l| *l.kind() == linkify::LinkKind::Url)
+            .collect();
+        assert_eq!(links.len(), 1);
+        links[0].as_str().to_owned()
+    };
+
+    assert_link(&email.html_content.as_str());
+}
+
+#[tokio::test]
 async fn subscribe_returns_a_400_when_data_is_missing() {
     // Arrange
     let test = setup().await;
