@@ -30,6 +30,10 @@ pub async fn subscribe(
         Err(_) => return HttpResponse::BadRequest().finish(),
     };
 
+    if insert_subscriber(&pool, &subscriber).await.is_err() {
+        return HttpResponse::InternalServerError().finish();
+    }
+
     let email = email_client
         .email_builder()
         .to(&subscriber)
@@ -37,12 +41,11 @@ pub async fn subscribe(
         .html_content("<p>Thanks for subscribing to our newsletter!</p>")
         .build();
 
-    let _res = email_client.send_email(&email).await;
-
-    match insert_subscriber(&pool, &subscriber).await {
-        Ok(_) => HttpResponse::Ok().finish(),
-        Err(_) => HttpResponse::InternalServerError().finish(),
+    if email_client.send_email(&email).await.is_err() {
+        return HttpResponse::InternalServerError().finish();
     }
+
+    HttpResponse::Ok().finish()
 }
 
 #[tracing::instrument(
