@@ -34,11 +34,18 @@ pub async fn subscribe(
         return HttpResponse::InternalServerError().finish();
     }
 
+    let confirmation_link = "https://my-api.com/subscriptions/confirm";
+    let html_content = format!(
+        "<p>Thanks for subscribing to our newsletter!</p><br/>
+        Click <a href=\"{}\">here</a> to confirm your subscription.",
+        confirmation_link
+    );
+
     let email = email_client
         .email_builder()
         .to(&subscriber)
         .subject("Welcome!")
-        .html_content("<p>Thanks for subscribing to our newsletter!</p>")
+        .html_content(&html_content)
         .build();
 
     if email_client.send_email(&email).await.is_err() {
