@@ -34,6 +34,21 @@ pub async fn subscribe(
         return HttpResponse::InternalServerError().finish();
     }
 
+    if send_confirmation_email(&email_client, &subscriber)
+        .await
+        .is_err()
+    {
+        return HttpResponse::InternalServerError().finish();
+    }
+
+    HttpResponse::Ok().finish()
+}
+
+#[tracing::instrument(name = "Sending a confirmation email", skip(email_client, subscriber))]
+async fn send_confirmation_email(
+    email_client: &Brevo,
+    subscriber: &Person,
+) -> Result<(), reqwest::Error> {
     let confirmation_link = "https://my-api.com/subscriptions/confirm";
     let html_content = format!(
         "<p>Thanks for subscribing to our newsletter!</p><br/>
@@ -43,16 +58,12 @@ pub async fn subscribe(
 
     let email = email_client
         .email_builder()
-        .to(&subscriber)
+        .to(subscriber)
         .subject("Welcome!")
         .html_content(&html_content)
         .build();
 
-    if email_client.send_email(&email).await.is_err() {
-        return HttpResponse::InternalServerError().finish();
-    }
-
-    HttpResponse::Ok().finish()
+    email_client.send_email(&email).await
 }
 
 #[tracing::instrument(
