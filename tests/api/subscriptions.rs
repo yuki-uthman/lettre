@@ -1,6 +1,10 @@
 //! tests/api/subscriptions.rs
 
 use crate::helpers::setup;
+use wiremock::{
+    matchers::{any, method},
+    Mock, ResponseTemplate,
+};
 
 #[tokio::test]
 async fn subscribe_returns_a_200_for_valid_form_data() {
@@ -21,6 +25,26 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
 
     assert_eq!(saved.email, "ursula_le_guin@gmail.com");
     assert_eq!(saved.name, "le guin");
+}
+
+#[tokio::test]
+async fn subscribe_sends_email_for_valid_form_data() {
+    // Arrange
+    let test = setup().await;
+
+    Mock::given(any())
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&test.email_server)
+        .await;
+
+    // Act
+    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+    let response = test.post("/subscriptions", body.into()).await;
+
+    // Assert
+    assert_eq!(200, response.status().as_u16());
 }
 
 #[tokio::test]
