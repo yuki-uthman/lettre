@@ -7,6 +7,7 @@ use once_cell::sync::Lazy;
 use secrecy::ExposeSecret;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
+use wiremock::MockServer;
 
 static TRACING: Lazy<()> = Lazy::new(|| {
     let default_filter_level = "info".to_string();
@@ -27,6 +28,7 @@ static TRACING: Lazy<()> = Lazy::new(|| {
 pub struct Test {
     pub address: String,
     pub db_pool: PgPool,
+    pub email_server: MockServer,
 }
 
 impl Test {
@@ -74,6 +76,10 @@ pub async fn setup() -> Test {
         .await
         .expect("Failed to migrate the database");
 
+    // Start email server
+    let email_server = MockServer::start().await;
+    config.set_email_url(email_server.uri());
+
     // Launch the server
     let app = build(config.clone()).expect("Failed to build server.");
     let address = format!("http://127.0.0.1:{}", app.port());
@@ -81,5 +87,9 @@ pub async fn setup() -> Test {
     // Launch the server as a background task
     let _ = tokio::spawn(app.run());
 
-    Test { address, db_pool }
+    Test {
+        address,
+        db_pool,
+        email_server,
+    }
 }

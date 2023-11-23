@@ -10,6 +10,14 @@ pub struct Settings {
     pub email: Option<EmailSettings>,
 }
 
+impl Settings {
+    pub fn set_email_url(&mut self, email_url: String) {
+        if let Some(email_settings) = &mut self.email {
+            email_settings.api_url = email_url;
+        }
+    }
+}
+
 #[derive(Deserialize, Clone)]
 pub struct DatabaseSettings {
     pub username: String,
