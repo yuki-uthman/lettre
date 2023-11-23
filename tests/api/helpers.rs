@@ -32,6 +32,12 @@ pub struct Test {
 }
 
 impl Test {
+    pub async fn get(&self, path: &str) -> reqwest::Response {
+        reqwest::get(&format!("{}{}", self.address, path))
+            .await
+            .expect("Failed to execute request.")
+    }
+
     pub async fn post(&self, path: &str, body: String) -> reqwest::Response {
         reqwest::Client::new()
             .post(&format!("{}{}", self.address, path))
