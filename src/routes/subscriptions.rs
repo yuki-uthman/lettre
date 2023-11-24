@@ -49,10 +49,9 @@ async fn send_confirmation_email(
     email_client: &Brevo,
     subscriber: &Person,
 ) -> Result<(), reqwest::Error> {
-    let confirmation_link = "https://my-api.com/subscriptions/confirm";
+    let confirmation_link = "https://127.0.0.1/subscriptions/confirm?subscription_token=token";
     let html_content = format!(
-        "<p>Thanks for subscribing to our newsletter!</p><br/>
-        Click <a href=\"{}\">here</a> to confirm your subscription.",
+        "<p>Thanks for subscribing to our newsletter!</p><br/>Click <a href=\"{}\">here</a> to confirm your subscription.",
         confirmation_link
     );
 
