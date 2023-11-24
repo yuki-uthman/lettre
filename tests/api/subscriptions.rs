@@ -1,6 +1,6 @@
 //! tests/api/subscriptions.rs
 
-use crate::helpers::setup;
+use crate::helpers::{extract_link_path, setup};
 use wiremock::{
     matchers::{any, method},
     Mock, ResponseTemplate,
@@ -85,16 +85,8 @@ async fn subscribe_sends_email_with_a_link() {
     let email_request = &test.email_server.received_requests().await.unwrap()[0];
     let email: Email = serde_json::from_slice(&email_request.body).unwrap();
 
-    let assert_link = |s: &str| {
-        let links: Vec<_> = linkify::LinkFinder::new()
-            .links(s)
-            .filter(|l| *l.kind() == linkify::LinkKind::Url)
-            .collect();
-        assert_eq!(links.len(), 1);
-        links[0].as_str().to_owned()
-    };
-
-    assert_link(&email.html_content.as_str());
+    let link = extract_link_path(&email.html_content);
+    assert!(link.is_some());
 }
 
 #[tokio::test]

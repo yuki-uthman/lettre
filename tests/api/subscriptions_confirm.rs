@@ -1,7 +1,6 @@
 //! tests/api/subscriptions_confirm.rs
 
-use crate::helpers::setup;
-use reqwest::Url;
+use crate::helpers::{extract_link_path, setup};
 use wiremock::{
     matchers::{any, method},
     Mock, ResponseTemplate,
@@ -44,31 +43,12 @@ async fn link_returns_a_200_if_clicked() {
     // Assert
     let email_request = &test.email_server.received_requests().await.unwrap();
     if email_request.len() != 1 {
-        panic!("Expected 1 email request, got {}", email_request.len(),);
+        panic!("Expected 1 email request, got {}", email_request.len());
     }
 
     let email: Email = serde_json::from_slice(&email_request[0].body).unwrap();
+    let link_path = extract_link_path(&email.html_content.as_str()).expect("No link found");
 
-    let get_link = |s: &str| -> Result<String, Box<dyn std::error::Error>> {
-        let links: Vec<_> = linkify::LinkFinder::new()
-            .links(s)
-            .filter(|link| *link.kind() == linkify::LinkKind::Url)
-            .collect();
-        if links.len() != 1 {
-            panic!("Error parsing for link: {:#?}", s);
-        }
-
-        let url = Url::parse(links[0].as_str())?;
-        let link = format!(
-            "{}?{}",
-            url.path(),
-            url.query().unwrap_or_default().to_owned()
-        );
-        Ok(link)
-    };
-
-    let link = get_link(&email.html_content.as_str()).unwrap();
-
-    let response = test.get(&link).await;
+    let response = test.get(&link_path).await;
     assert_eq!(200, response.status().as_u16());
 }

@@ -4,6 +4,7 @@ use letter::configuration::get_configuration;
 use letter::startup::build;
 use letter::telemetry::{get_subscriber, init_subscriber};
 use once_cell::sync::Lazy;
+use reqwest::Url;
 use secrecy::ExposeSecret;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
@@ -100,5 +101,24 @@ pub async fn setup() -> Test {
         address,
         db_pool,
         email_server,
+    }
+}
+
+pub fn extract_link_path(s: &str) -> Option<String> {
+    let links: Vec<_> = linkify::LinkFinder::new()
+        .links(s)
+        .filter(|link| *link.kind() == linkify::LinkKind::Url)
+        .collect();
+
+    if links.len() == 0 {
+        return None;
+    }
+
+    let url = Url::parse(links[0].as_str()).expect("Failed to parse link.");
+
+    if let Some(query) = url.query() {
+        Some(format!("{}?{}", url.path(), query))
+    } else {
+        Some(url.path().to_string())
     }
 }
