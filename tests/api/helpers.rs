@@ -89,6 +89,9 @@ pub async fn setup() -> Test {
     // Launch the server
     let app = build(config.clone()).expect("Failed to build server.");
     let address = format!("http://127.0.0.1:{}", app.port());
+    config.application.port = app.port();
+
+    tracing::info!("Test running with the following Settings:\n{:#?}", config);
 
     // Launch the server as a background task
     let _ = tokio::spawn(app.run());
