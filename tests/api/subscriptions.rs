@@ -1,6 +1,6 @@
 //! tests/api/subscriptions.rs
 
-use crate::helpers::{extract_link_path, setup};
+use crate::helpers::{extract_link_path, setup, Email};
 use wiremock::{
     matchers::{any, method},
     Mock, ResponseTemplate,
@@ -74,12 +74,6 @@ async fn subscribe_sends_email_with_a_link() {
     // Act
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
     let _ = test.post("/subscriptions", body.into()).await;
-
-    #[derive(serde::Deserialize)]
-    struct Email {
-        #[serde(rename = "htmlContent")]
-        html_content: String,
-    }
 
     // Assert
     let email_request = &test.email_server.received_requests().await.unwrap()[0];

@@ -122,3 +122,9 @@ pub fn extract_link_path(s: &str) -> Option<String> {
         Some(url.path().to_string())
     }
 }
+
+#[derive(serde::Deserialize)]
+pub struct Email {
+    #[serde(rename = "htmlContent")]
+    pub html_content: String,
+}
