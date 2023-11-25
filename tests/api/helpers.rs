@@ -48,6 +48,23 @@ impl Test {
             .await
             .expect("Failed to execute request.")
     }
+
+    pub async fn received_email(&self) -> Email {
+        let email_request = self.email_server.received_requests().await.unwrap();
+        let email_request = if email_request.len() == 1 {
+            &email_request[0]
+        } else {
+            panic!(
+                "Expected 1 email to be sent but instead {} were sent.",
+                email_request.len()
+            );
+        };
+
+        let email: Email =
+            serde_json::from_slice(&email_request.body).expect("Failed to parse email");
+
+        email
+    }
 }
 
 pub async fn setup() -> Test {
@@ -104,22 +121,22 @@ pub async fn setup() -> Test {
     }
 }
 
-pub fn extract_link_path(s: &str) -> Option<String> {
+pub fn extract_link_path(s: &str) -> String {
     let links: Vec<_> = linkify::LinkFinder::new()
         .links(s)
         .filter(|link| *link.kind() == linkify::LinkKind::Url)
         .collect();
 
     if links.len() == 0 {
-        return None;
+        panic!("No links found in email.");
     }
 
     let url = Url::parse(links[0].as_str()).expect("Failed to parse link.");
 
     if let Some(query) = url.query() {
-        Some(format!("{}?{}", url.path(), query))
+        format!("{}?{}", url.path(), query)
     } else {
-        Some(url.path().to_string())
+        url.path().to_string()
     }
 }
 
