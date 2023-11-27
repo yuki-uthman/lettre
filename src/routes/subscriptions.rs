@@ -107,10 +107,7 @@ fn generate_subscription_token() -> String {
         .collect()
 }
 
-#[tracing::instrument(
-    name = "Saving new subscription token in the database",
-    skip(pool)
-)]
+#[tracing::instrument(name = "Saving new subscription token in the database", skip(pool))]
 async fn insert_token(pool: &PgPool, subscriber_id: Uuid, token: &str) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"

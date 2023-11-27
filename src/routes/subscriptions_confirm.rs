@@ -48,7 +48,7 @@ pub async fn confirm(
     .fetch_one(pool)
     .await;
 
-    if let Err(_) = result {
+    if result.is_err() {
         return HttpResponse::InternalServerError().finish();
     }
 
