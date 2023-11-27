@@ -27,17 +27,7 @@ pub async fn confirm(
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
 
-    let result = sqlx::query!(
-        r#"
-        UPDATE subscriptions
-        SET status = 'confirmed'
-        WHERE id = $1 AND status = 'pending_confirmation'
-        RETURNING id
-        "#,
-        subscriber_id
-    )
-    .fetch_one(pool)
-    .await;
+    let result = confirm_subscriber(pool, subscriber_id).await;
 
     if result.is_err() {
         return HttpResponse::InternalServerError().finish();
@@ -61,4 +51,18 @@ async fn get_subscriber_id(
     .fetch_optional(pool)
     .await
     .map(|row| row.map(|r| r.subscriber_id))
+}
+
+async fn confirm_subscriber(pool: &sqlx::PgPool, subscriber_id: Uuid) -> Result<(), sqlx::Error> {
+    sqlx::query!(
+        r#"
+        UPDATE subscriptions
+        SET status = 'confirmed'
+        WHERE id = $1 AND status = 'pending_confirmation'
+        "#,
+        subscriber_id
+    )
+    .execute(pool)
+    .await
+    .map(|_| ())
 }
