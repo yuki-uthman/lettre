@@ -41,7 +41,7 @@ pub async fn subscribe(
         return HttpResponse::InternalServerError().finish();
     }
 
-    if send_confirmation_email(&email_client, &subscriber)
+    if send_confirmation_email(&email_client, &subscriber, &token)
         .await
         .is_err()
     {
@@ -55,8 +55,12 @@ pub async fn subscribe(
 async fn send_confirmation_email(
     email_client: &Brevo,
     subscriber: &Person,
+    token: &str,
 ) -> Result<(), reqwest::Error> {
-    let confirmation_link = "https://127.0.0.1/subscriptions/confirm?subscription_token=token";
+    let confirmation_link = format!(
+        "http://127.0.0.1/subscriptions/confirm?subscription_token={}",
+        token
+    );
     let html_content = format!(
         "<p>Thanks for subscribing to our newsletter!</p><br/>Click <a href=\"{}\">here</a> to confirm your subscription.",
         confirmation_link
