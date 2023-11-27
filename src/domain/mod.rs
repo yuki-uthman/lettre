@@ -1,4 +1,4 @@
 //! src/domain/mod.rs
 
-mod person;
+pub mod person;
 pub use person::Person;

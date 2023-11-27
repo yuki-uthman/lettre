@@ -1,10 +1,45 @@
 //! src/routes/subscriptions.rs
-use crate::{domain::Person, email::Brevo};
-use actix_web::{web, HttpResponse, Result};
+use crate::domain::{self, Person};
+use crate::email::Brevo;
+use actix_web::{web, HttpResponse, ResponseError, Result};
 use chrono::Utc;
 use rand::Rng;
 use sqlx::{Executor, PgPool, Postgres, Transaction};
 use uuid::Uuid;
+
+#[derive(Debug)]
+pub enum SubscribeError {
+    ParseError(domain::person::Error),
+    DatabaseError(sqlx::Error),
+    SendEmailError(reqwest::Error),
+}
+impl std::fmt::Display for SubscribeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Failed to create a new subscriber.")
+    }
+}
+
+impl std::error::Error for SubscribeError {}
+
+impl ResponseError for SubscribeError {}
+
+impl From<domain::person::Error> for SubscribeError {
+    fn from(e: domain::person::Error) -> Self {
+        Self::ParseError(e)
+    }
+}
+
+impl From<reqwest::Error> for SubscribeError {
+    fn from(e: reqwest::Error) -> Self {
+        Self::SendEmailError(e)
+    }
+}
+
+impl From<sqlx::Error> for SubscribeError {
+    fn from(e: sqlx::Error) -> Self {
+        Self::DatabaseError(e)
+    }
+}
 
 #[derive(serde::Deserialize)]
 pub struct SubscriberForm {
@@ -25,56 +60,19 @@ pub async fn subscribe(
     form: web::Form<SubscriberForm>,
     pool: web::Data<PgPool>,
     email_client: web::Data<Brevo>,
-) -> Result<HttpResponse, actix_web::Error> {
-    let subscriber = match Person::try_from(form.into_inner()) {
-        Ok(subscriber) => subscriber,
-        Err(_) => {
-            return Err(actix_web::error::ErrorBadRequest(
-                "Failed to parse subscriber",
-            ))
-        }
-    };
+) -> Result<HttpResponse, SubscribeError> {
+    let subscriber = Person::try_from(form.into_inner())?;
 
-    let mut transaction = match pool.begin().await {
-        Ok(transaction) => transaction,
-        Err(_) => {
-            return Err(actix_web::error::ErrorInternalServerError(
-                "Failed to connect to database",
-            ))
-        }
-    };
+    let mut transaction = pool.begin().await?;
 
-    let id = match insert_subscriber(&mut transaction, &subscriber).await {
-        Ok(id) => id,
-        Err(_) => {
-            return Err(actix_web::error::ErrorInternalServerError(
-                "Failed to insert new subscriber",
-            ))
-        }
-    };
+    let id = insert_subscriber(&mut transaction, &subscriber).await?;
 
     let token = generate_subscription_token();
-    if insert_token(&mut transaction, id, &token).await.is_err() {
-        return Err(actix_web::error::ErrorInternalServerError(
-            "Failed to store subscription token",
-        ));
-    }
+    insert_token(&mut transaction, id, &token).await?;
 
-    let result = transaction.commit().await;
-    if result.is_err() {
-        return Err(actix_web::error::ErrorInternalServerError(
-            "Failed to commit SQL transaction",
-        ));
-    }
+    transaction.commit().await?;
 
-    if send_confirmation_email(&email_client, &subscriber, &token)
-        .await
-        .is_err()
-    {
-        return Err(actix_web::error::ErrorInternalServerError(
-            "Failed to send confirmation email",
-        ));
-    }
+    send_confirmation_email(&email_client, &subscriber, &token).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
