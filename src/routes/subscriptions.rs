@@ -7,36 +7,20 @@ use rand::Rng;
 use sqlx::{Executor, PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
+#[derive(thiserror::Error)]
 pub enum SubscribeError {
-    ParseError(domain::person::Error),
-    SendEmailError(reqwest::Error),
-    PoolError(sqlx::Error),
-    InsertSubscriberError(sqlx::Error),
-    InsertTokenError(sqlx::Error),
-    TransactionError(sqlx::Error),
-}
-
-impl std::fmt::Display for SubscribeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SubscribeError::ParseError(e) => write!(f, "Failed to parse subscriber data: {}", e),
-            SubscribeError::SendEmailError(e) => {
-                write!(f, "Failed to send confirmation email: {}", e)
-            }
-            SubscribeError::PoolError(e) => {
-                write!(f, "Failed to acquire a Postgres connection: {}", e)
-            }
-            SubscribeError::InsertSubscriberError(e) => {
-                write!(f, "Failed to insert new subscriber: {}", e)
-            }
-            SubscribeError::InsertTokenError(e) => {
-                write!(f, "Failed to insert new subscriber token: {}", e)
-            }
-            SubscribeError::TransactionError(e) => {
-                write!(f, "Failed to commit SQL transaction: {}", e)
-            }
-        }
-    }
+    #[error("{0}")]
+    ParseError(#[from] domain::person::Error),
+    #[error("Failed to acquire a Postgres connection from the pool")]
+    PoolError(#[source] sqlx::Error),
+    #[error("Failed to insert new subscriber in the database.")]
+    InsertSubscriberError(#[source] sqlx::Error),
+    #[error("Failed to insert new subscriber token in the database.")]
+    InsertTokenError(#[source] sqlx::Error),
+    #[error("Failed to commit SQL transaction to store a new subscriber.")]
+    TransactionError(#[source] sqlx::Error),
+    #[error("Failed to send a confirmation email.")]
+    SendEmailError(#[from] reqwest::Error),
 }
 
 fn error_chain_fmt(
@@ -58,19 +42,6 @@ impl std::fmt::Debug for SubscribeError {
     }
 }
 
-impl std::error::Error for SubscribeError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            SubscribeError::ParseError(e) => Some(e),
-            SubscribeError::SendEmailError(e) => Some(e),
-            SubscribeError::PoolError(e) => Some(e),
-            SubscribeError::InsertSubscriberError(e) => Some(e),
-            SubscribeError::InsertTokenError(e) => Some(e),
-            SubscribeError::TransactionError(e) => Some(e),
-        }
-    }
-}
-
 impl ResponseError for SubscribeError {
     fn status_code(&self) -> actix_web::http::StatusCode {
         match self {
@@ -87,18 +58,6 @@ impl ResponseError for SubscribeError {
                 actix_web::http::StatusCode::INTERNAL_SERVER_ERROR
             }
         }
-    }
-}
-
-impl From<domain::person::Error> for SubscribeError {
-    fn from(e: domain::person::Error) -> Self {
-        Self::ParseError(e)
-    }
-}
-
-impl From<reqwest::Error> for SubscribeError {
-    fn from(e: reqwest::Error) -> Self {
-        Self::SendEmailError(e)
     }
 }
 
