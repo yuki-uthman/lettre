@@ -1,5 +1,5 @@
 //! src/routes/subscriptions.rs
-use crate::domain::{self, Person};
+use crate::domain::Person;
 use crate::email::Brevo;
 use actix_web::{web, HttpResponse, ResponseError, Result};
 use anyhow::Context;
@@ -11,7 +11,7 @@ use uuid::Uuid;
 #[derive(thiserror::Error)]
 pub enum SubscribeError {
     #[error("{0}")]
-    ParseError(#[from] domain::person::Error),
+    ParseError(#[source] Box<dyn std::error::Error>),
     #[error(transparent)]
     UnexpectedError(#[from] anyhow::Error),
 }
@@ -66,7 +66,8 @@ pub async fn subscribe(
     pool: web::Data<PgPool>,
     email_client: web::Data<Brevo>,
 ) -> Result<HttpResponse, SubscribeError> {
-    let subscriber = Person::try_from(form.into_inner())?;
+    let subscriber =
+        Person::try_from(form.into_inner()).map_err(|e| SubscribeError::ParseError(e.into()))?;
 
     let mut transaction = pool
         .begin()
