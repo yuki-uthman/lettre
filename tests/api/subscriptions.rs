@@ -194,3 +194,29 @@ async fn subscribe_fails_if_sth_wrong_with_subscriptions_token_table() {
     // Assert
     assert_eq!(response.status().as_u16(), 500);
 }
+
+#[tokio::test]
+async fn subscribe_fails_if_sth_wrong_with_name() {
+    // Arrange
+    let app = setup().await;
+    let body = "name=le%20guin%7B&email=ursula_le_guin@gmail.com";
+
+    // Act
+    let response = app.post("/subscriptions", body.into()).await;
+
+    // Assert
+    assert_eq!(response.status().as_u16(), 400);
+}
+
+#[tokio::test]
+async fn subscribe_fails_if_sth_wrong_with_email() {
+    // Arrange
+    let app = setup().await;
+    let body = "name=le%20guin&email=ursula_le_guin";
+
+    // Act
+    let response = app.post("/subscriptions", body.into()).await;
+
+    // Assert
+    assert_eq!(response.status().as_u16(), 400);
+}
