@@ -2,6 +2,7 @@
 use crate::domain::{self, Person};
 use crate::email::Brevo;
 use actix_web::{web, HttpResponse, ResponseError, Result};
+use anyhow::Context;
 use chrono::Utc;
 use rand::Rng;
 use sqlx::{Executor, PgPool, Postgres, Transaction};
@@ -11,16 +12,8 @@ use uuid::Uuid;
 pub enum SubscribeError {
     #[error("{0}")]
     ParseError(#[from] domain::person::Error),
-    #[error("Failed to acquire a Postgres connection from the pool")]
-    PoolError(#[source] sqlx::Error),
-    #[error("Failed to insert new subscriber in the database.")]
-    InsertSubscriberError(#[source] sqlx::Error),
-    #[error("Failed to insert new subscriber token in the database.")]
-    InsertTokenError(#[source] sqlx::Error),
-    #[error("Failed to commit SQL transaction to store a new subscriber.")]
-    TransactionError(#[source] sqlx::Error),
-    #[error("Failed to send a confirmation email.")]
-    SendEmailError(#[from] reqwest::Error),
+    #[error(transparent)]
+    UnexpectedError(#[from] anyhow::Error),
 }
 
 fn error_chain_fmt(
@@ -46,15 +39,7 @@ impl ResponseError for SubscribeError {
     fn status_code(&self) -> actix_web::http::StatusCode {
         match self {
             SubscribeError::ParseError(_) => actix_web::http::StatusCode::BAD_REQUEST,
-            SubscribeError::SendEmailError(_) => actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
-            SubscribeError::PoolError(_) => actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
-            SubscribeError::InsertSubscriberError(_) => {
-                actix_web::http::StatusCode::INTERNAL_SERVER_ERROR
-            }
-            SubscribeError::InsertTokenError(_) => {
-                actix_web::http::StatusCode::INTERNAL_SERVER_ERROR
-            }
-            SubscribeError::TransactionError(_) => {
+            SubscribeError::UnexpectedError(_) => {
                 actix_web::http::StatusCode::INTERNAL_SERVER_ERROR
             }
         }
@@ -83,23 +68,28 @@ pub async fn subscribe(
 ) -> Result<HttpResponse, SubscribeError> {
     let subscriber = Person::try_from(form.into_inner())?;
 
-    let mut transaction = pool.begin().await.map_err(SubscribeError::PoolError)?;
+    let mut transaction = pool
+        .begin()
+        .await
+        .context("Failed to acquire a Postgres connection")?;
 
     let id = insert_subscriber(&mut transaction, &subscriber)
         .await
-        .map_err(SubscribeError::InsertSubscriberError)?;
+        .context("Failed to insert a new subscriber in the database")?;
 
     let token = generate_subscription_token();
     insert_token(&mut transaction, id, &token)
         .await
-        .map_err(SubscribeError::InsertTokenError)?;
+        .context("Failed to insert a new token in the database")?;
 
     transaction
         .commit()
         .await
-        .map_err(SubscribeError::TransactionError)?;
+        .context("Failed to commit SQL transaction")?;
 
-    send_confirmation_email(&email_client, &subscriber, &token).await?;
+    send_confirmation_email(&email_client, &subscriber, &token)
+        .await
+        .context("Failed to send a confirmation email.")?;
 
     Ok(HttpResponse::Ok().finish())
 }
