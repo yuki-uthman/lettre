@@ -10,8 +10,11 @@ use uuid::Uuid;
 #[derive(Debug)]
 pub enum SubscribeError {
     ParseError(domain::person::Error),
-    DatabaseError(sqlx::Error),
     SendEmailError(reqwest::Error),
+    PoolError(sqlx::Error),
+    InsertSubscriberError(sqlx::Error),
+    InsertTokenError(sqlx::Error),
+    TransactionError(sqlx::Error),
 }
 impl std::fmt::Display for SubscribeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -25,8 +28,17 @@ impl ResponseError for SubscribeError {
     fn status_code(&self) -> actix_web::http::StatusCode {
         match self {
             SubscribeError::ParseError(_) => actix_web::http::StatusCode::BAD_REQUEST,
-            SubscribeError::DatabaseError(_) => actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
             SubscribeError::SendEmailError(_) => actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
+            SubscribeError::PoolError(_) => actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
+            SubscribeError::InsertSubscriberError(_) => {
+                actix_web::http::StatusCode::INTERNAL_SERVER_ERROR
+            }
+            SubscribeError::InsertTokenError(_) => {
+                actix_web::http::StatusCode::INTERNAL_SERVER_ERROR
+            }
+            SubscribeError::TransactionError(_) => {
+                actix_web::http::StatusCode::INTERNAL_SERVER_ERROR
+            }
         }
     }
 }
@@ -40,12 +52,6 @@ impl From<domain::person::Error> for SubscribeError {
 impl From<reqwest::Error> for SubscribeError {
     fn from(e: reqwest::Error) -> Self {
         Self::SendEmailError(e)
-    }
-}
-
-impl From<sqlx::Error> for SubscribeError {
-    fn from(e: sqlx::Error) -> Self {
-        Self::DatabaseError(e)
     }
 }
 
@@ -71,14 +77,21 @@ pub async fn subscribe(
 ) -> Result<HttpResponse, SubscribeError> {
     let subscriber = Person::try_from(form.into_inner())?;
 
-    let mut transaction = pool.begin().await?;
+    let mut transaction = pool.begin().await.map_err(SubscribeError::PoolError)?;
 
-    let id = insert_subscriber(&mut transaction, &subscriber).await?;
+    let id = insert_subscriber(&mut transaction, &subscriber)
+        .await
+        .map_err(SubscribeError::InsertSubscriberError)?;
 
     let token = generate_subscription_token();
-    insert_token(&mut transaction, id, &token).await?;
+    insert_token(&mut transaction, id, &token)
+        .await
+        .map_err(SubscribeError::InsertTokenError)?;
 
-    transaction.commit().await?;
+    transaction
+        .commit()
+        .await
+        .map_err(SubscribeError::TransactionError)?;
 
     send_confirmation_email(&email_client, &subscriber, &token).await?;
 
