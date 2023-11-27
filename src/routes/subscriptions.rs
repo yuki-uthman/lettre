@@ -18,7 +18,24 @@ pub enum SubscribeError {
 }
 impl std::fmt::Display for SubscribeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Failed to create a new subscriber.")
+        match self {
+            SubscribeError::ParseError(e) => write!(f, "Failed to parse subscriber data: {}", e),
+            SubscribeError::SendEmailError(e) => {
+                write!(f, "Failed to send confirmation email: {}", e)
+            }
+            SubscribeError::PoolError(e) => {
+                write!(f, "Failed to acquire a Postgres connection: {}", e)
+            }
+            SubscribeError::InsertSubscriberError(e) => {
+                write!(f, "Failed to insert new subscriber: {}", e)
+            }
+            SubscribeError::InsertTokenError(e) => {
+                write!(f, "Failed to insert new subscriber token: {}", e)
+            }
+            SubscribeError::TransactionError(e) => {
+                write!(f, "Failed to commit SQL transaction: {}", e)
+            }
+        }
     }
 }
 
