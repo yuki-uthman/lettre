@@ -16,10 +16,7 @@ pub async fn confirm(
     params: web::Query<Parameters>,
 ) -> HttpResponse {
     tracing::info!("{:#?}", params);
-    let subscription_token = params.into_inner().subscription_token;
-
-    let pool = pool.get_ref();
-    let result = get_subscriber_id(pool, &subscription_token).await;
+    let result = get_subscriber_id(&pool, &params.subscription_token).await;
 
     let subscriber_id = match result {
         Ok(Some(subscriber_id)) => subscriber_id,
@@ -27,7 +24,7 @@ pub async fn confirm(
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
 
-    let result = confirm_subscriber(pool, subscriber_id).await;
+    let result = confirm_subscriber(&pool, subscriber_id).await;
 
     if result.is_err() {
         return HttpResponse::InternalServerError().finish();
