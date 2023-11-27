@@ -2,6 +2,7 @@
 
 use actix_web::{web, HttpResponse};
 use serde::Deserialize;
+use uuid::Uuid;
 
 #[allow(dead_code)]
 #[derive(Deserialize, Debug)]
@@ -18,17 +19,7 @@ pub async fn confirm(
     let subscription_token = params.into_inner().subscription_token;
 
     let pool = pool.get_ref();
-    let result = sqlx::query!(
-        r#"
-        SELECT subscriber_id
-        FROM subscription_tokens
-        WHERE subscription_token = $1
-        "#,
-        subscription_token
-    )
-    .fetch_optional(pool)
-    .await
-    .map(|row| row.map(|r| r.subscriber_id));
+    let result = get_subscriber_id(pool, &subscription_token).await;
 
     let subscriber_id = match result {
         Ok(Some(subscriber_id)) => subscriber_id,
@@ -53,4 +44,21 @@ pub async fn confirm(
     }
 
     HttpResponse::Ok().finish()
+}
+
+async fn get_subscriber_id(
+    pool: &sqlx::PgPool,
+    subscription_token: &str,
+) -> Result<Option<Uuid>, sqlx::Error> {
+    sqlx::query!(
+        r#"
+        SELECT subscriber_id
+        FROM subscription_tokens
+        WHERE subscription_token = $1
+        "#,
+        subscription_token
+    )
+    .fetch_optional(pool)
+    .await
+    .map(|row| row.map(|r| r.subscriber_id))
 }
