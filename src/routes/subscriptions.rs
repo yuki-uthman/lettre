@@ -21,7 +21,15 @@ impl std::fmt::Display for SubscribeError {
 
 impl std::error::Error for SubscribeError {}
 
-impl ResponseError for SubscribeError {}
+impl ResponseError for SubscribeError {
+    fn status_code(&self) -> actix_web::http::StatusCode {
+        match self {
+            SubscribeError::ParseError(_) => actix_web::http::StatusCode::BAD_REQUEST,
+            SubscribeError::DatabaseError(_) => actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
+            SubscribeError::SendEmailError(_) => actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
 
 impl From<domain::person::Error> for SubscribeError {
     fn from(e: domain::person::Error) -> Self {
