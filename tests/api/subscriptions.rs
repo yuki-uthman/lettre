@@ -156,3 +156,41 @@ async fn subscribe_returns_a_400_when_email_is_invalid() {
         );
     }
 }
+
+#[tokio::test]
+async fn subscribe_fails_if_sth_wrong_with_subscriptions_table() {
+    // Arrange
+    let app = setup().await;
+    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+
+    // Sabotage the database
+    sqlx::query!("ALTER TABLE subscriptions DROP COLUMN email;",)
+        .execute(&app.db_pool)
+        .await
+        .unwrap();
+
+    // Act
+    let response = app.post("/subscriptions", body.into()).await;
+
+    // Assert
+    assert_eq!(response.status().as_u16(), 500);
+}
+
+#[tokio::test]
+async fn subscribe_fails_if_sth_wrong_with_subscriptions_token_table() {
+    // Arrange
+    let app = setup().await;
+    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+
+    // Sabotage the database
+    sqlx::query!("ALTER TABLE subscription_tokens DROP COLUMN subscription_token;",)
+        .execute(&app.db_pool)
+        .await
+        .unwrap();
+
+    // Act
+    let response = app.post("/subscriptions", body.into()).await;
+
+    // Assert
+    assert_eq!(response.status().as_u16(), 500);
+}
