@@ -25,40 +25,58 @@ pub async fn subscribe(
     form: web::Form<SubscriberForm>,
     pool: web::Data<PgPool>,
     email_client: web::Data<Brevo>,
-) -> HttpResponse {
+) -> Result<HttpResponse, actix_web::Error> {
     let subscriber = match Person::try_from(form.into_inner()) {
         Ok(subscriber) => subscriber,
-        Err(_) => return HttpResponse::BadRequest().finish(),
+        Err(_) => {
+            return Err(actix_web::error::ErrorBadRequest(
+                "Failed to parse subscriber",
+            ))
+        }
     };
 
     let mut transaction = match pool.begin().await {
         Ok(transaction) => transaction,
-        Err(_) => return HttpResponse::InternalServerError().finish(),
+        Err(_) => {
+            return Err(actix_web::error::ErrorInternalServerError(
+                "Failed to connect to database",
+            ))
+        }
     };
 
     let id = match insert_subscriber(&mut transaction, &subscriber).await {
         Ok(id) => id,
-        Err(_) => return HttpResponse::InternalServerError().finish(),
+        Err(_) => {
+            return Err(actix_web::error::ErrorInternalServerError(
+                "Failed to insert new subscriber",
+            ))
+        }
     };
 
     let token = generate_subscription_token();
     if insert_token(&mut transaction, id, &token).await.is_err() {
-        return HttpResponse::InternalServerError().finish();
+        return Err(actix_web::error::ErrorInternalServerError(
+            "Failed to store subscription token",
+        ));
     }
 
     let result = transaction.commit().await;
     if result.is_err() {
-        return HttpResponse::InternalServerError().finish();
+        return Err(actix_web::error::ErrorInternalServerError(
+            "Failed to commit SQL transaction",
+        ));
     }
 
     if send_confirmation_email(&email_client, &subscriber, &token)
         .await
         .is_err()
     {
-        return HttpResponse::InternalServerError().finish();
+        return Err(actix_web::error::ErrorInternalServerError(
+            "Failed to send confirmation email",
+        ));
     }
 
-    HttpResponse::Ok().finish()
+    Ok(HttpResponse::Ok().finish())
 }
 
 #[tracing::instrument(name = "Sending a confirmation email", skip(email_client, subscriber))]
@@ -106,7 +124,10 @@ async fn insert_subscriber(
         form.name.as_ref(),
         Utc::now()
     );
-    transaction.execute(query).await?;
+    transaction.execute(query).await.map_err(|e| {
+        tracing::error!("Failed to execute query: {:#?}", e);
+        e
+    })?;
 
     Ok(id)
 }
@@ -136,7 +157,10 @@ async fn insert_token(
         token,
         subscriber_id
     );
-    transaction.execute(query).await?;
+    transaction.execute(query).await.map_err(|e| {
+        tracing::error!("Failed to execute query: {:#?}", e);
+        e
+    })?;
 
     Ok(())
 }
