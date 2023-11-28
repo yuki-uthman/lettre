@@ -8,8 +8,8 @@ pub enum Error {
     Empty,
     #[error("A name must not be more than 256 graphemes long")]
     TooLong,
-    #[error("A name must not contain any of the following characters: '/' '(' ')' '\"' '<' '>' '\\' '{{' '}}'")]
-    InvalidCharacters,
+    #[error("A name must not contain any of the following characters: '/' '(' ')' '\"' '<' '>' '\\' '{{' '}}': {0}")]
+    InvalidCharacters(String),
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -39,7 +39,7 @@ impl Name {
         let forbidden_characters = ['/', '(', ')', '"', '<', '>', '\\', '{', '}'];
         let contains_forbidden_characters = s.chars().any(|g| forbidden_characters.contains(&g));
         if contains_forbidden_characters {
-            return Err(Error::InvalidCharacters);
+            return Err(Error::InvalidCharacters(s));
         }
 
         Ok(Self(s))
@@ -107,7 +107,7 @@ mod tests {
             let name = name.to_string();
 
             let result = Name::parse(name);
-            matches!(result, Err(Error::InvalidCharacters));
+            matches!(result, Err(Error::InvalidCharacters(_)));
         }
     }
 
