@@ -140,10 +140,7 @@ async fn insert_subscriber(
         form.name.as_ref(),
         Utc::now()
     );
-    transaction.execute(query).await.map_err(|e| {
-        tracing::error!("Failed to execute query: {:#?}", e);
-        e
-    })?;
+    transaction.execute(query).await?;
 
     Ok(id)
 }
@@ -173,10 +170,7 @@ async fn insert_token(
         token,
         subscriber_id
     );
-    transaction.execute(query).await.map_err(|e| {
-        tracing::error!("Failed to execute query: {:#?}", e);
-        e
-    })?;
+    transaction.execute(query).await?;
 
     Ok(())
 }
