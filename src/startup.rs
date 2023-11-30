@@ -1,6 +1,7 @@
 //! src/startup.rs
 use crate::configuration::Settings;
 use crate::email::Brevo;
+use crate::routes::newsletters;
 use crate::routes::{confirm, health_check, subscribe};
 use actix_web::dev::Server;
 use actix_web::{web, App, HttpServer};
@@ -52,6 +53,7 @@ pub fn run(
             .route("/health_check", web::get().to(health_check))
             .route("/subscriptions", web::post().to(subscribe))
             .route("/subscriptions/confirm", web::get().to(confirm))
+            .route("/newsletters", web::post().to(newsletters::publish))
             .app_data(connection.clone())
             .app_data(email_client.clone())
     })
