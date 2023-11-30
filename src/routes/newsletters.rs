@@ -56,7 +56,7 @@ pub async fn publish(
         email_client
             .send_email(&email)
             .await
-            .context("Failed to send email")?;
+            .with_context(|| format!("Failed to send email to {}", subscriber.email))?;
     }
 
     Ok(HttpResponse::Ok().finish())

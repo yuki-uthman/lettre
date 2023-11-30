@@ -33,6 +33,12 @@ impl AsRef<str> for Email {
     }
 }
 
+impl std::fmt::Display for Email {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_ref())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
