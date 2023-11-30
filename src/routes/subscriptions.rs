@@ -1,6 +1,7 @@
 //! src/routes/subscriptions.rs
 use crate::domain::Person;
 use crate::email::Brevo;
+use crate::routes::error_chain_fmt;
 use actix_web::{web, HttpResponse, ResponseError, Result};
 use anyhow::Context;
 use chrono::Utc;
@@ -14,19 +15,6 @@ pub enum SubscribeError {
     ParseError(#[source] Box<dyn std::error::Error>),
     #[error(transparent)]
     UnexpectedError(#[from] anyhow::Error),
-}
-
-fn error_chain_fmt(
-    e: &impl std::error::Error,
-    f: &mut std::fmt::Formatter<'_>,
-) -> std::fmt::Result {
-    writeln!(f, "{}\n", e)?;
-    let mut current = e.source();
-    while let Some(cause) = current {
-        writeln!(f, "Caused by:\n\t{}", cause)?;
-        current = cause.source();
-    }
-    Ok(())
 }
 
 impl std::fmt::Debug for SubscribeError {
