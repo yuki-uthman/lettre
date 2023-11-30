@@ -34,11 +34,7 @@ pub async fn publish(
         .await
         .context("Failed to retrieve confirmed subscribers")?;
 
-    let parsed_subscribers: Vec<Subscriber> = confirmed_subscribers
-        .iter()
-        .map(|row| Subscriber::parse(row.name.clone(), row.email.clone()))
-        .flatten()
-        .collect::<Vec<_>>();
+    let parsed_subscribers = parse_confirmed_subscribers(confirmed_subscribers);
 
     for subscriber in parsed_subscribers {
         let body = format!(
@@ -80,4 +76,24 @@ async fn get_confirmed_subscribers(pool: &PgPool) -> Result<Vec<Row>, sqlx::Erro
     )
     .fetch_all(pool)
     .await
+}
+
+#[tracing::instrument(name = "Parse confirmed subscribers", skip(rows))]
+fn parse_confirmed_subscribers(rows: Vec<Row>) -> Vec<Subscriber> {
+    let mut subscribers = Vec::new();
+
+    for row in rows {
+        let result = Subscriber::parse(row.name, row.email.clone());
+
+        match result {
+            Ok(subscriber) => subscribers.push(subscriber),
+            Err(e) => {
+                tracing::warn!(
+                    error.cause_chain = ?e,
+                    "Skipping confirmed subscriber {} because {}", row.email, e);
+            }
+        }
+    }
+
+    subscribers
 }
