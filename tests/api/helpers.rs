@@ -50,10 +50,12 @@ impl Test {
     }
 
     pub async fn post_newsletter(&self, body: serde_json::Value) -> reqwest::Response {
+        let user = self.test_user().await;
+
         reqwest::Client::new()
             .post(&format!("{}/newsletters", self.address))
             .header("Content-Type", "application/json")
-            .basic_auth("dummy", Some("secret"))
+            .basic_auth(user.username, Some(user.password))
             .json(&body)
             .send()
             .await
@@ -75,6 +77,44 @@ impl Test {
             serde_json::from_slice(&email_request.body).expect("Failed to parse email");
 
         email
+    }
+
+    pub async fn test_user(&self) -> User {
+        sqlx::query_as!(
+            User,
+            "SELECT user_id, username, password FROM users LIMIT 1",
+        )
+        .fetch_one(&self.db_pool)
+        .await
+        .expect("Failed to create test users.")
+    }
+}
+
+async fn add_user(db_pool: &PgPool, user: &User) {
+    sqlx::query!(
+        "INSERT INTO users (user_id, username, password) VALUES ($1, $2, $3)",
+        user.user_id,
+        user.username,
+        user.password
+    )
+    .execute(db_pool)
+    .await
+    .expect("Failed to create test users");
+}
+
+pub struct User {
+    user_id: Uuid,
+    username: String,
+    password: String,
+}
+
+impl User {
+    pub fn generate() -> Self {
+        Self {
+            user_id: Uuid::new_v4(),
+            username: Uuid::new_v4().to_string(),
+            password: Uuid::new_v4().to_string(),
+        }
     }
 }
 
@@ -110,6 +150,10 @@ pub async fn setup() -> Test {
         .run(&db_pool)
         .await
         .expect("Failed to migrate the database");
+
+    // Create test admin user
+    let user = User::generate();
+    add_user(&db_pool, &user).await;
 
     // Start email server
     let email_server = MockServer::start().await;
