@@ -7,6 +7,8 @@ use actix_web::http::{
 };
 use actix_web::{web, HttpRequest, HttpResponse, ResponseError};
 use anyhow::Context;
+use base64::{engine, Engine};
+use secrecy::Secret;
 use sqlx::PgPool;
 
 #[derive(thiserror::Error)]
@@ -49,11 +51,21 @@ pub struct Newsletter {
     body: String,
 }
 
+struct Credentials {
+    username: String,
+    password: Secret<String>,
+}
+
 pub async fn publish(
     pool: web::Data<PgPool>,
     email_client: web::Data<Brevo>,
     payload: web::Json<Newsletter>,
+    req: HttpRequest,
 ) -> Result<HttpResponse, PublishError> {
+    let _credentials = extract_credentials(&req.headers())
+        .context("Failed to extract auth credentials from the header")
+        .map_err(PublishError::AuthError)?;
+
     let newsletter: Newsletter = payload.into_inner();
 
     let confirmed_subscribers = get_confirmed_subscribers(&pool)
@@ -77,6 +89,44 @@ pub async fn publish(
     }
 
     Ok(HttpResponse::Ok().finish())
+}
+
+fn extract_credentials(headers: &HeaderMap) -> Result<Credentials, anyhow::Error> {
+    let auth_header = headers
+        .get("Authorization")
+        .context("Missing authorization header")?;
+
+    let auth_header = auth_header
+        .to_str()
+        .context("Failed to parse authorization header")?;
+
+    let encoded_creds = auth_header
+        .strip_prefix("Basic ")
+        .context("Invalid authorization header format")?;
+
+    let decoded_bytes = engine::general_purpose::STANDARD
+        .decode(&encoded_creds)
+        .context("Failed to base64-decode authorization header")?;
+
+    let decoded_string = String::from_utf8(decoded_bytes)
+        .context("Failed to parse authorization header as UTF8 string")?;
+
+    let mut credentials = decoded_string.splitn(2, ':');
+
+    let username = credentials
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("A username is missing"))?
+        .to_string();
+
+    let password = credentials
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("A password is missing"))?
+        .to_string();
+
+    Ok(Credentials {
+        username,
+        password: Secret::new(password),
+    })
 }
 
 #[derive(serde::Deserialize)]
