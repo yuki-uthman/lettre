@@ -53,6 +53,7 @@ impl Test {
         reqwest::Client::new()
             .post(&format!("{}/newsletters", self.address))
             .header("Content-Type", "application/json")
+            .basic_auth("dummy", Some("secret"))
             .json(&body)
             .send()
             .await
