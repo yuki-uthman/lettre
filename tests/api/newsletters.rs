@@ -46,10 +46,7 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
     // A sketch of the newsletter payload structure. // We might change it later on.
     let newsletter_request_body = serde_json::json!({
              "title": "Newsletter title",
-             "content": {
-                 "text": "Newsletter body as plain text",
-                 "html": "<p>Newsletter body as HTML</p>",
-             }
+             "body": "Newsletter body",
     });
     let response = app.post_newsletter(newsletter_request_body).await;
 
@@ -74,10 +71,7 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
     // A sketch of the newsletter payload structure. // We might change it later on.
     let newsletter_request_body = serde_json::json!({
              "title": "Newsletter title",
-             "content": {
-                 "text": "Newsletter body as plain text",
-                 "html": "<p>Newsletter body as HTML</p>",
-             }
+             "body": "Newsletter body",
     });
     let response = app.post_newsletter(newsletter_request_body).await;
 
@@ -92,10 +86,7 @@ async fn newsletters_returns_400_for_invalid_data() {
     let app = setup().await;
 
     let missing_title = serde_json::json!({
-        "content": {
-            "text": "Newsletter body as plain text",
-            "html": "<p>Newsletter body as HTML</p>",
-        }
+        "body": "Newsletter body",
     });
     let missing_content = serde_json::json!({
         "title": "Newsletter title",
@@ -108,8 +99,8 @@ async fn newsletters_returns_400_for_invalid_data() {
         let response = app.post_newsletter(invalid_body).await;
 
         assert_eq!(
-            400,
             response.status().as_u16(),
+            400,
             "The API did not fail with 400 Bad Request when the payload was {}.",
             error_message
         );
