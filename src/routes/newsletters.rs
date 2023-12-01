@@ -63,7 +63,7 @@ pub async fn publish(
     payload: web::Json<Newsletter>,
     req: HttpRequest,
 ) -> Result<HttpResponse, PublishError> {
-    let _credentials = extract_credentials(&req.headers())
+    let _credentials = extract_credentials(req.headers())
         .context("Failed to extract auth credentials from the header")
         .map_err(PublishError::AuthError)?;
 
@@ -108,7 +108,7 @@ fn extract_credentials(headers: &HeaderMap) -> Result<Credentials, anyhow::Error
         .context("Invalid authorization header format")?;
 
     let decoded_bytes = engine::general_purpose::STANDARD
-        .decode(&encoded_creds)
+        .decode(encoded_creds)
         .context("Failed to base64-decode authorization header")?;
 
     let decoded_string = String::from_utf8(decoded_bytes)

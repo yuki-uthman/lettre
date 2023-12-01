@@ -129,4 +129,3 @@ async fn requests_missing_authorization_are_rejected() {
         response.headers()["WWW-Authenticate"]
     );
 }
-
