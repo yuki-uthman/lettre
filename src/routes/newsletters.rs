@@ -8,7 +8,7 @@ use actix_web::http::{
 use actix_web::{web, HttpRequest, HttpResponse, ResponseError};
 use anyhow::Context;
 use base64::{engine, Engine};
-use secrecy::Secret;
+use secrecy::{ExposeSecret, Secret};
 use sqlx::PgPool;
 
 #[derive(thiserror::Error)]
@@ -51,6 +51,7 @@ pub struct Newsletter {
     body: String,
 }
 
+#[derive(serde::Deserialize, Debug)]
 struct Credentials {
     username: String,
     password: Secret<String>,
@@ -65,6 +66,8 @@ pub async fn publish(
     let _credentials = extract_credentials(&req.headers())
         .context("Failed to extract auth credentials from the header")
         .map_err(PublishError::AuthError)?;
+
+    let _user_id = authenticate(&pool, &_credentials).await?;
 
     let newsletter: Newsletter = payload.into_inner();
 
@@ -127,6 +130,36 @@ fn extract_credentials(headers: &HeaderMap) -> Result<Credentials, anyhow::Error
         username,
         password: Secret::new(password),
     })
+}
+
+#[tracing::instrument(name = "Authenticate user", skip(pool))]
+async fn authenticate(
+    pool: &PgPool,
+    credentials: &Credentials,
+) -> Result<uuid::Uuid, PublishError> {
+    let result = sqlx::query!(
+        r#"
+        SELECT user_id
+        FROM users
+        WHERE username = $1 AND password = $2
+        "#,
+        credentials.username,
+        credentials.password.expose_secret(),
+    )
+    .fetch_optional(pool)
+    .await
+    .context("Failed to query the database")
+    .map_err(PublishError::UnexpectedError)?;
+
+    result
+        .map(|row| row.user_id)
+        .ok_or_else(|| {
+            anyhow::anyhow!(format!(
+                "Invalid username or password for user: {}",
+                credentials.username
+            ))
+        })
+        .map_err(PublishError::AuthError)
 }
 
 #[derive(serde::Deserialize)]
