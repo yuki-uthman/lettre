@@ -26,10 +26,19 @@ impl ResponseError for PublishError {
     }
 }
 
+#[derive(serde::Deserialize)]
+pub struct Newsletter {
+    title: String,
+    body: String,
+}
+
 pub async fn publish(
     pool: web::Data<PgPool>,
     email_client: web::Data<Brevo>,
+    payload: web::Json<Newsletter>,
 ) -> Result<HttpResponse, PublishError> {
+    let newsletter: Newsletter = payload.into_inner();
+
     let confirmed_subscribers = get_confirmed_subscribers(&pool)
         .await
         .context("Failed to retrieve confirmed subscribers")?;
@@ -37,16 +46,11 @@ pub async fn publish(
     let parsed_subscribers = parse_confirmed_subscribers(confirmed_subscribers);
 
     for subscriber in parsed_subscribers {
-        let body = format!(
-            "Hello! This is a newsletter from your friends at The Rust Async Working Group. \
-            We're happy to have you",
-        );
-
         let email = email_client
             .email_builder()
-            .subject("Newsletter")
+            .subject(&newsletter.title)
             .to(&subscriber)
-            .html_content(&body)
+            .html_content(&newsletter.body)
             .build();
 
         email_client

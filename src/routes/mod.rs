@@ -21,4 +21,3 @@ fn error_chain_fmt(
     }
     Ok(())
 }
-
