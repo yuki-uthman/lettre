@@ -1,13 +1,18 @@
 //! src/routes/newsletters.rs
 use crate::domain::Person as Subscriber;
 use crate::{email::Brevo, routes::error_chain_fmt};
-use actix_web::{web, HttpResponse, ResponseError};
+use actix_web::http::{
+    header::{HeaderMap, HeaderValue, WWW_AUTHENTICATE},
+    StatusCode,
+};
+use actix_web::{web, HttpRequest, HttpResponse, ResponseError};
 use anyhow::Context;
-use reqwest::StatusCode;
 use sqlx::PgPool;
 
 #[derive(thiserror::Error)]
 pub enum PublishError {
+    #[error("Authentication failed")]
+    AuthError(#[source] anyhow::Error),
     #[error(transparent)]
     UnexpectedError(#[from] anyhow::Error),
 }
@@ -19,9 +24,21 @@ impl std::fmt::Debug for PublishError {
 }
 
 impl ResponseError for PublishError {
-    fn status_code(&self) -> StatusCode {
+    fn error_response(&self) -> HttpResponse {
         match self {
-            PublishError::UnexpectedError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            PublishError::UnexpectedError(_) => {
+                HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+            PublishError::AuthError(_) => {
+                let authentication = (
+                    WWW_AUTHENTICATE,
+                    HeaderValue::from_static(r#"Basic realm="publish""#),
+                );
+
+                HttpResponse::build(StatusCode::UNAUTHORIZED)
+                    .insert_header(authentication)
+                    .finish()
+            }
         }
     }
 }
