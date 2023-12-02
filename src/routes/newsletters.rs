@@ -7,9 +7,9 @@ use actix_web::http::{
 };
 use actix_web::{web, HttpRequest, HttpResponse, ResponseError};
 use anyhow::Context;
+use argon2::PasswordVerifier;
 use base64::{engine, Engine};
 use secrecy::{ExposeSecret, Secret};
-use sha3::Digest;
 use sqlx::PgPool;
 
 #[derive(thiserror::Error)]
@@ -133,37 +133,45 @@ fn extract_credentials(headers: &HeaderMap) -> Result<Credentials, anyhow::Error
     })
 }
 
+struct User {
+    user_id: uuid::Uuid,
+    password_hash: String,
+}
+
 #[tracing::instrument(name = "Authenticate user", skip(pool))]
 async fn authenticate(
     pool: &PgPool,
-    credentials: &Credentials,
+    received_credentials: &Credentials,
 ) -> Result<uuid::Uuid, PublishError> {
-    let password_hash = sha3::Sha3_256::digest(credentials.password.expose_secret().as_bytes());
-    let password_hash = format!("{:x}", password_hash);
-
-    let result = sqlx::query!(
+    let user_db = sqlx::query_as!(
+        User,
         r#"
-        SELECT user_id
+        SELECT user_id, password_hash
         FROM users
-        WHERE username = $1 AND password_hash = $2
+        WHERE username = $1
         "#,
-        credentials.username,
-        password_hash
+        received_credentials.username,
     )
     .fetch_optional(pool)
     .await
     .context("Failed to query the database")
-    .map_err(PublishError::UnexpectedError)?;
+    .map_err(PublishError::UnexpectedError)?
+    .ok_or_else(|| anyhow::anyhow!(format!("User {} not found", received_credentials.username)))
+    .map_err(PublishError::AuthError)?;
 
-    result
-        .map(|row| row.user_id)
-        .ok_or_else(|| {
-            anyhow::anyhow!(format!(
-                "Invalid username or password for user: {}",
-                credentials.username
-            ))
-        })
-        .map_err(PublishError::AuthError)
+    let expected_password_hash = argon2::PasswordHash::new(&user_db.password_hash)
+        .context("Failed to hash the received password")
+        .map_err(PublishError::UnexpectedError)?;
+
+    argon2::Argon2::default()
+        .verify_password(
+            received_credentials.password.expose_secret().as_bytes(),
+            &expected_password_hash,
+        )
+        .context("Failed to verify the password")
+        .map_err(PublishError::UnexpectedError)?;
+
+    Ok(user_db.user_id)
 }
 
 #[derive(serde::Deserialize)]
