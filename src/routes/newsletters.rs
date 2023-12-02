@@ -163,11 +163,13 @@ async fn authenticate(
         .context("Failed to hash the received password")
         .map_err(PublishError::UnexpectedError)?;
 
-    argon2::Argon2::default()
-        .verify_password(
-            received_credentials.password.expose_secret().as_bytes(),
-            &expected_password_hash,
-        )
+    tracing::info_span!("Verify password hash")
+        .in_scope(|| {
+            argon2::Argon2::default().verify_password(
+                received_credentials.password.expose_secret().as_bytes(),
+                &expected_password_hash,
+            )
+        })
         .context("Failed to verify the password")
         .map_err(PublishError::UnexpectedError)?;
 
