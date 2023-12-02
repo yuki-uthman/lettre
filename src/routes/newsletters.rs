@@ -136,6 +136,9 @@ fn extract_credentials(headers: &HeaderMap) -> Result<Credentials, anyhow::Error
 struct User {
     user_id: uuid::Uuid,
     password_hash: String,
+
+    #[allow(dead_code)]
+    username: String,
 }
 
 #[tracing::instrument(name = "Authenticate user", skip(pool))]
@@ -143,21 +146,15 @@ async fn authenticate(
     pool: &PgPool,
     received_credentials: &Credentials,
 ) -> Result<uuid::Uuid, PublishError> {
-    let user_db = sqlx::query_as!(
-        User,
-        r#"
-        SELECT user_id, password_hash
-        FROM users
-        WHERE username = $1
-        "#,
-        received_credentials.username,
-    )
-    .fetch_optional(pool)
-    .await
-    .context("Failed to query the database")
-    .map_err(PublishError::UnexpectedError)?
-    .ok_or_else(|| anyhow::anyhow!(format!("User {} not found", received_credentials.username)))
-    .map_err(PublishError::AuthError)?;
+    let user_db = get_user(pool, &received_credentials.username)
+        .await
+        .context(format!(
+            "Failed to retrieve user {} from the database",
+            received_credentials.username
+        ))
+        .map_err(PublishError::UnexpectedError)?
+        .ok_or_else(|| anyhow::anyhow!(format!("User {} not found", received_credentials.username)))
+        .map_err(PublishError::AuthError)?;
 
     let expected_password_hash = argon2::PasswordHash::new(&user_db.password_hash)
         .context("Failed to hash the received password")
@@ -174,6 +171,21 @@ async fn authenticate(
         .map_err(PublishError::UnexpectedError)?;
 
     Ok(user_db.user_id)
+}
+
+#[tracing::instrument(name = "Get user from the database", skip(pool))]
+async fn get_user(pool: &PgPool, username: &str) -> Result<Option<User>, sqlx::Error> {
+    sqlx::query_as!(
+        User,
+        r#"
+        SELECT user_id, username, password_hash
+        FROM users
+        WHERE username = $1
+        "#,
+        username,
+    )
+    .fetch_optional(pool)
+    .await
 }
 
 #[derive(serde::Deserialize)]
