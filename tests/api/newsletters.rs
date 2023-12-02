@@ -1,6 +1,7 @@
 //! tests/api/newsletters.rs
 
 use crate::helpers::{extract_link_path, setup, Email, Test};
+use uuid::Uuid;
 use wiremock::{
     matchers::{any, method},
     Mock, ResponseTemplate,
@@ -114,6 +115,61 @@ async fn requests_missing_authorization_are_rejected() {
 
     let response = reqwest::Client::new()
         .post(&format!("{}/newsletters", &app.address))
+        .json(&serde_json::json!({
+            "title": "Newsletter title",
+            "body": "Newsletter body",
+        }))
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    // Assert
+    assert_eq!(401, response.status().as_u16());
+    assert_eq!(
+        r#"Basic realm="publish""#,
+        response.headers()["WWW-Authenticate"]
+    );
+}
+
+#[tokio::test]
+async fn user_non_existing_is_rejected() {
+    // Arrange
+    let app = setup().await;
+    // Random credentials
+    let username = Uuid::new_v4().to_string();
+    let password = Uuid::new_v4().to_string();
+
+    let response = reqwest::Client::new()
+        .post(&format!("{}/newsletters", &app.address))
+        .basic_auth(username, Some(password))
+        .json(&serde_json::json!({
+            "title": "Newsletter title",
+            "body": "Newsletter body",
+        }))
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    // Assert
+    assert_eq!(401, response.status().as_u16());
+    assert_eq!(
+        r#"Basic realm="publish""#,
+        response.headers()["WWW-Authenticate"]
+    );
+}
+
+#[tokio::test]
+async fn user_invalid_password_is_rejected() {
+    // Arrange
+    let app = setup().await;
+    let username = &app.user.username;
+    // Random password
+    let password = Uuid::new_v4().to_string();
+    assert_ne!(app.user.password, password);
+
+    let response = reqwest::Client::new()
+        .post(&format!("{}/newsletters", &app.address))
+        .basic_auth(username, Some(password))
         .json(&serde_json::json!({
             "title": "Newsletter title",
             "body": "Newsletter body",

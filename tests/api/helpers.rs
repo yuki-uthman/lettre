@@ -104,8 +104,8 @@ async fn add_user(db_pool: &PgPool, user: &User) {
 
 pub struct User {
     user_id: Uuid,
-    username: String,
-    password: String,
+    pub username: String,
+    pub password: String,
 }
 
 impl User {
