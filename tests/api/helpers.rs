@@ -6,6 +6,7 @@ use letter::telemetry::{get_subscriber, init_subscriber};
 use once_cell::sync::Lazy;
 use reqwest::Url;
 use secrecy::ExposeSecret;
+use sha3::Digest;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use wiremock::MockServer;
@@ -30,6 +31,7 @@ pub struct Test {
     pub address: String,
     pub db_pool: PgPool,
     pub email_server: MockServer,
+    pub user: User,
 }
 
 impl Test {
@@ -50,12 +52,10 @@ impl Test {
     }
 
     pub async fn post_newsletter(&self, body: serde_json::Value) -> reqwest::Response {
-        let user = self.test_user().await;
-
         reqwest::Client::new()
             .post(&format!("{}/newsletters", self.address))
             .header("Content-Type", "application/json")
-            .basic_auth(user.username, Some(user.password))
+            .basic_auth(&self.user.username, Some(&self.user.password))
             .json(&body)
             .send()
             .await
@@ -78,24 +78,17 @@ impl Test {
 
         email
     }
-
-    pub async fn test_user(&self) -> User {
-        sqlx::query_as!(
-            User,
-            "SELECT user_id, username, password FROM users LIMIT 1",
-        )
-        .fetch_one(&self.db_pool)
-        .await
-        .expect("Failed to create test users.")
-    }
 }
 
 async fn add_user(db_pool: &PgPool, user: &User) {
+    let password_hash = sha3::Sha3_256::digest(user.password.as_bytes());
+    let password_hash = format!("{:x}", password_hash);
+
     sqlx::query!(
-        "INSERT INTO users (user_id, username, password) VALUES ($1, $2, $3)",
+        "INSERT INTO users (user_id, username, password_hash) VALUES ($1, $2, $3)",
         user.user_id,
         user.username,
-        user.password
+        password_hash,
     )
     .execute(db_pool)
     .await
@@ -173,6 +166,7 @@ pub async fn setup() -> Test {
         address,
         db_pool,
         email_server,
+        user,
     }
 }
 
