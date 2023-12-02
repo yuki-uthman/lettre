@@ -156,15 +156,11 @@ async fn authenticate(
         .ok_or_else(|| anyhow::anyhow!(format!("User {} not found", received_credentials.username)))
         .map_err(PublishError::AuthError)?;
 
-    let expected_password_hash = argon2::PasswordHash::new(&user_db.password_hash)
-        .context("Failed to hash the received password")
-        .map_err(PublishError::UnexpectedError)?;
-
     tracing::info_span!("Verify password hash")
         .in_scope(|| {
-            argon2::Argon2::default().verify_password(
-                received_credentials.password.expose_secret().as_bytes(),
-                &expected_password_hash,
+            verify_password(
+                received_credentials.password.clone(),
+                &user_db.password_hash,
             )
         })
         .context("Failed to verify the password")
@@ -186,6 +182,16 @@ async fn get_user(pool: &PgPool, username: &str) -> Result<Option<User>, sqlx::E
     )
     .fetch_optional(pool)
     .await
+}
+
+#[tracing::instrument(name = "Verify password hash" skip(password, hash))]
+fn verify_password(password: Secret<String>, hash: &str) -> Result<(), anyhow::Error> {
+    let expected_password_hash =
+        argon2::PasswordHash::new(hash).context("Failed to create password hash")?;
+
+    argon2::Argon2::default()
+        .verify_password(password.expose_secret().as_bytes(), &expected_password_hash)
+        .context("Failed to verify the password")
 }
 
 #[derive(serde::Deserialize)]
