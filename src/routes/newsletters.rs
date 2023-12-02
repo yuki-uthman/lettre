@@ -64,11 +64,11 @@ pub async fn publish(
     payload: web::Json<Newsletter>,
     req: HttpRequest,
 ) -> Result<HttpResponse, PublishError> {
-    let _credentials = extract_credentials(req.headers())
+    let credentials = extract_credentials(req.headers())
         .context("Failed to extract auth credentials from the header")
         .map_err(PublishError::AuthError)?;
 
-    let _user_id = authenticate(&pool, &_credentials).await?;
+    let _user_id = authenticate(&pool, credentials).await?;
 
     let newsletter: Newsletter = payload.into_inner();
 
@@ -144,7 +144,7 @@ struct User {
 #[tracing::instrument(name = "Authenticate user", skip(pool))]
 async fn authenticate(
     pool: &PgPool,
-    received_credentials: &Credentials,
+    received_credentials: Credentials,
 ) -> Result<uuid::Uuid, PublishError> {
     let user_db = get_user(pool, &received_credentials.username)
         .await
@@ -156,15 +156,15 @@ async fn authenticate(
         .ok_or_else(|| anyhow::anyhow!(format!("User {} not found", received_credentials.username)))
         .map_err(PublishError::AuthError)?;
 
-    tracing::info_span!("Verify password hash")
-        .in_scope(|| {
-            verify_password(
-                received_credentials.password.clone(),
-                &user_db.password_hash,
-            )
-        })
-        .context("Failed to verify the password")
-        .map_err(PublishError::UnexpectedError)?;
+    tokio::task::spawn_blocking(move || {
+        verify_password(
+            received_credentials.password.to_owned(),
+            user_db.password_hash.to_owned(),
+        )
+    })
+    .await
+    .context("Failed to spawn blocking task")
+    .map_err(PublishError::UnexpectedError)??;
 
     Ok(user_db.user_id)
 }
@@ -185,9 +185,9 @@ async fn get_user(pool: &PgPool, username: &str) -> Result<Option<User>, sqlx::E
 }
 
 #[tracing::instrument(name = "Verify password hash" skip(password, hash))]
-fn verify_password(password: Secret<String>, hash: &str) -> Result<(), anyhow::Error> {
+fn verify_password(password: Secret<String>, hash: String) -> Result<(), anyhow::Error> {
     let expected_password_hash =
-        argon2::PasswordHash::new(hash).context("Failed to create password hash")?;
+        argon2::PasswordHash::new(&hash).context("Failed to create password hash")?;
 
     argon2::Argon2::default()
         .verify_password(password.expose_secret().as_bytes(), &expected_password_hash)
