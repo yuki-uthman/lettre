@@ -1,5 +1,6 @@
 //! src/routes/newsletters.rs
 use crate::domain::Person as Subscriber;
+use crate::telemetry::spawn_blocking_with_tracing;
 use crate::{email::Brevo, routes::error_chain_fmt};
 use actix_web::http::{
     header::{HeaderMap, HeaderValue, WWW_AUTHENTICATE},
@@ -156,18 +157,14 @@ async fn authenticate(
         .ok_or_else(|| anyhow::anyhow!(format!("User {} not found", received_credentials.username)))
         .map_err(PublishError::AuthError)?;
 
-    let current_span = tracing::Span::current();
-    tokio::task::spawn_blocking(move || {
-        let _ = current_span.in_scope(|| {
-            verify_password(
-                received_credentials.password.to_owned(),
-                user_db.password_hash.to_owned(),
-            )
-        });
+    spawn_blocking_with_tracing(move || {
+        verify_password(received_credentials.password, user_db.password_hash)
     })
     .await
-    .context("Failed to spawn blocking task")
-    .map_err(PublishError::UnexpectedError)?;
+    .context("Failed to spawn blocking thread")
+    .map_err(PublishError::UnexpectedError)?
+    .context("Failed to verify password")
+    .map_err(PublishError::AuthError)?;
 
     Ok(user_db.user_id)
 }
