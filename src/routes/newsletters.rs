@@ -153,12 +153,22 @@ async fn authenticate(
             "Failed to retrieve user {} from the database",
             received_credentials.username
         ))
-        .map_err(PublishError::UnexpectedError)?
-        .ok_or_else(|| anyhow::anyhow!(format!("User {} not found", received_credentials.username)))
-        .map_err(PublishError::AuthError)?;
+        .map_err(PublishError::UnexpectedError)?;
+
+    let (user_id, password_hash) = match user_db {
+        Some(user_db) => (Some(user_db.user_id), user_db.password_hash),
+        None => {
+            let hash = "$argon2id$v=19$m=15000,t=2,p=1$\
+        gZiV/M1gPc22ElAH/Jh1Hw$\
+        CWOrkoo7oJBQ/iyh7uJ0LO2aLEfrHwTWllSAxT0zRno"
+                .to_string();
+
+            (None, hash)
+        }
+    };
 
     spawn_blocking_with_tracing(move || {
-        verify_password(received_credentials.password, user_db.password_hash)
+        verify_password(received_credentials.password, password_hash)
     })
     .await
     .context("Failed to spawn blocking thread")
@@ -166,7 +176,9 @@ async fn authenticate(
     .context("Failed to verify password")
     .map_err(PublishError::AuthError)?;
 
-    Ok(user_db.user_id)
+    user_id
+        .ok_or_else(|| anyhow::anyhow!("User not found"))
+        .map_err(PublishError::AuthError)
 }
 
 #[tracing::instrument(name = "Get user from the database", skip(pool))]

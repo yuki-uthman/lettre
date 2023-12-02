@@ -84,12 +84,14 @@ impl Test {
 async fn add_user(db_pool: &PgPool, user: &User) {
     let salt = SaltString::generate(&mut rand::thread_rng());
 
-    // We don't care about the exact Argon2 parameters here
-    // given that it's for testing purposes!
-    let password_hash = Argon2::default()
-        .hash_password(user.password.as_bytes(), &salt)
-        .unwrap()
-        .to_string();
+    let password_hash = Argon2::new(
+        argon2::Algorithm::Argon2id,
+        argon2::Version::V0x13,
+        argon2::Params::new(15000, 2, 1, None).unwrap(),
+    )
+    .hash_password(user.password.as_bytes(), &salt)
+    .unwrap()
+    .to_string();
 
     sqlx::query!(
         "INSERT INTO users (user_id, username, password_hash) VALUES ($1, $2, $3)",
