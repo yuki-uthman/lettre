@@ -156,15 +156,18 @@ async fn authenticate(
         .ok_or_else(|| anyhow::anyhow!(format!("User {} not found", received_credentials.username)))
         .map_err(PublishError::AuthError)?;
 
+    let current_span = tracing::Span::current();
     tokio::task::spawn_blocking(move || {
-        verify_password(
-            received_credentials.password.to_owned(),
-            user_db.password_hash.to_owned(),
-        )
+        let _ = current_span.in_scope(|| {
+            verify_password(
+                received_credentials.password.to_owned(),
+                user_db.password_hash.to_owned(),
+            )
+        });
     })
     .await
     .context("Failed to spawn blocking task")
-    .map_err(PublishError::UnexpectedError)??;
+    .map_err(PublishError::UnexpectedError)?;
 
     Ok(user_db.user_id)
 }
