@@ -13,6 +13,9 @@ pub mod newsletters;
 mod home;
 pub use home::*;
 
+mod login;
+pub use login::*;
+
 fn error_chain_fmt(
     e: &impl std::error::Error,
     f: &mut std::fmt::Formatter<'_>,
