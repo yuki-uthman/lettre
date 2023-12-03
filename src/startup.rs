@@ -2,7 +2,7 @@
 use crate::configuration::Settings;
 use crate::email::Brevo;
 use crate::routes::newsletters;
-use crate::routes::{confirm, health_check, subscribe};
+use crate::routes::{confirm, health_check, subscribe, home};
 use actix_web::dev::Server;
 use actix_web::{web, App, HttpServer};
 use secrecy::ExposeSecret;
@@ -50,6 +50,7 @@ pub fn run(
     let server = HttpServer::new(move || {
         App::new()
             .wrap(TracingLogger::default())
+            .route("/", web::get().to(home))
             .route("/health_check", web::get().to(health_check))
             .route("/subscriptions", web::post().to(subscribe))
             .route("/subscriptions/confirm", web::get().to(confirm))
