@@ -2,7 +2,7 @@
 use crate::configuration::Settings;
 use crate::email::Brevo;
 use crate::routes::newsletters;
-use crate::routes::{confirm, health_check, subscribe, home, login_form, login};
+use crate::routes::{confirm, health_check, home, login, login_form, subscribe};
 use actix_web::dev::Server;
 use actix_web::{web, App, HttpServer};
 use secrecy::ExposeSecret;
@@ -54,12 +54,10 @@ pub fn run(
             .route("/subscriptions", web::post().to(subscribe))
             .route("/subscriptions/confirm", web::get().to(confirm))
             .route("/newsletters", web::post().to(newsletters::publish))
-
             // serving HTML files
             .route("/", web::get().to(home))
             .route("/login", web::get().to(login_form))
             .route("/login", web::post().to(login))
-
             .app_data(connection.clone())
             .app_data(email_client.clone())
     })

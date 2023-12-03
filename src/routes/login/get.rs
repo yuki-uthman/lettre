@@ -1,5 +1,5 @@
 //! src/routes/login/get.rs
-use actix_web::{HttpResponse, http::header::ContentType};
+use actix_web::{http::header::ContentType, HttpResponse};
 
 pub async fn login_form() -> HttpResponse {
     HttpResponse::Ok()
