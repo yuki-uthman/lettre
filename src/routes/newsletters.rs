@@ -1,6 +1,6 @@
 //! src/routes/newsletters.rs
+use crate::authenticate::{self, authenticate, Credentials};
 use crate::domain::Person as Subscriber;
-use crate::telemetry::spawn_blocking_with_tracing;
 use crate::{email::Brevo, routes::error_chain_fmt};
 use actix_web::http::{
     header::{HeaderMap, HeaderValue, WWW_AUTHENTICATE},
@@ -8,9 +8,8 @@ use actix_web::http::{
 };
 use actix_web::{web, HttpRequest, HttpResponse, ResponseError};
 use anyhow::Context;
-use argon2::PasswordVerifier;
 use base64::{engine, Engine};
-use secrecy::{ExposeSecret, Secret};
+use secrecy::Secret;
 use sqlx::PgPool;
 
 #[derive(thiserror::Error)]
@@ -53,12 +52,6 @@ pub struct Newsletter {
     body: String,
 }
 
-#[derive(serde::Deserialize, Debug)]
-struct Credentials {
-    username: String,
-    password: Secret<String>,
-}
-
 pub async fn publish(
     pool: web::Data<PgPool>,
     email_client: web::Data<Brevo>,
@@ -69,7 +62,12 @@ pub async fn publish(
         .context("Failed to extract auth credentials from the header")
         .map_err(PublishError::AuthError)?;
 
-    let _user_id = authenticate(&pool, credentials).await?;
+    let _user_id = authenticate(&pool, credentials)
+        .await
+        .map_err(|e| match e {
+            authenticate::AuthError::InvalidCredentials(e) => PublishError::AuthError(e),
+            authenticate::AuthError::UnexpectedError(e) => PublishError::UnexpectedError(e),
+        })?;
 
     let newsletter: Newsletter = payload.into_inner();
 
@@ -132,78 +130,6 @@ fn extract_credentials(headers: &HeaderMap) -> Result<Credentials, anyhow::Error
         username,
         password: Secret::new(password),
     })
-}
-
-struct User {
-    user_id: uuid::Uuid,
-    password_hash: String,
-
-    #[allow(dead_code)]
-    username: String,
-}
-
-#[tracing::instrument(name = "Authenticate user", skip(pool))]
-async fn authenticate(
-    pool: &PgPool,
-    received_credentials: Credentials,
-) -> Result<uuid::Uuid, PublishError> {
-    let user_db = get_user(pool, &received_credentials.username)
-        .await
-        .context(format!(
-            "Failed to retrieve user {} from the database",
-            received_credentials.username
-        ))
-        .map_err(PublishError::UnexpectedError)?;
-
-    let (user_id, password_hash) = match user_db {
-        Some(user_db) => (Some(user_db.user_id), user_db.password_hash),
-        None => {
-            let hash = "$argon2id$v=19$m=15000,t=2,p=1$\
-        gZiV/M1gPc22ElAH/Jh1Hw$\
-        CWOrkoo7oJBQ/iyh7uJ0LO2aLEfrHwTWllSAxT0zRno"
-                .to_string();
-
-            (None, hash)
-        }
-    };
-
-    spawn_blocking_with_tracing(move || {
-        verify_password(received_credentials.password, password_hash)
-    })
-    .await
-    .context("Failed to spawn blocking thread")
-    .map_err(PublishError::UnexpectedError)?
-    .context("Failed to verify password")
-    .map_err(PublishError::AuthError)?;
-
-    user_id
-        .ok_or_else(|| anyhow::anyhow!("User not found"))
-        .map_err(PublishError::AuthError)
-}
-
-#[tracing::instrument(name = "Get user from the database", skip(pool))]
-async fn get_user(pool: &PgPool, username: &str) -> Result<Option<User>, sqlx::Error> {
-    sqlx::query_as!(
-        User,
-        r#"
-        SELECT user_id, username, password_hash
-        FROM users
-        WHERE username = $1
-        "#,
-        username,
-    )
-    .fetch_optional(pool)
-    .await
-}
-
-#[tracing::instrument(name = "Verify password hash" skip(password, hash))]
-fn verify_password(password: Secret<String>, hash: String) -> Result<(), anyhow::Error> {
-    let expected_password_hash =
-        argon2::PasswordHash::new(&hash).context("Failed to create password hash")?;
-
-    argon2::Argon2::default()
-        .verify_password(password.expose_secret().as_bytes(), &expected_password_hash)
-        .context("Failed to verify the password")
 }
 
 #[derive(serde::Deserialize)]
