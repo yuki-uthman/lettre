@@ -1,15 +1,17 @@
 //! src/routes/mod.rs
-mod home;
 mod health_check;
+pub use health_check::*;
+
 mod subscriptions;
+pub use subscriptions::*;
+
 mod subscriptions_confirm;
+pub use subscriptions_confirm::*;
 
 pub mod newsletters;
 
+mod home;
 pub use home::*;
-pub use health_check::*;
-pub use subscriptions::*;
-pub use subscriptions_confirm::*;
 
 fn error_chain_fmt(
     e: &impl std::error::Error,
