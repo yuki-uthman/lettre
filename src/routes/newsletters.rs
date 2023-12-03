@@ -52,6 +52,13 @@ pub struct Newsletter {
     body: String,
 }
 
+#[tracing::instrument(
+    name = "Publish a newsletter issue",
+    skip(pool, email_client, payload, req),
+    fields(
+        username=tracing::field::Empty,
+        user_id=tracing::field::Empty)
+)]
 pub async fn publish(
     pool: web::Data<PgPool>,
     email_client: web::Data<Brevo>,
@@ -62,12 +69,16 @@ pub async fn publish(
         .context("Failed to extract auth credentials from the header")
         .map_err(PublishError::AuthError)?;
 
-    let _user_id = authenticate(&pool, credentials)
+    tracing::Span::current().record("username", &tracing::field::display(&credentials.username));
+
+    let user_id = authenticate(&pool, credentials)
         .await
         .map_err(|e| match e {
             authenticate::AuthError::InvalidCredentials(e) => PublishError::AuthError(e),
             authenticate::AuthError::UnexpectedError(e) => PublishError::UnexpectedError(e),
         })?;
+
+    tracing::Span::current().record("user_id", &tracing::field::display(&user_id));
 
     let newsletter: Newsletter = payload.into_inner();
 
