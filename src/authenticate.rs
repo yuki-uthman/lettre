@@ -21,9 +21,9 @@ pub struct Credentials {
 }
 
 #[tracing::instrument(name = "Authenticate user", skip(pool))]
-pub async fn authenticate(
-    pool: &PgPool,
+pub async fn validate_credentials(
     received_credentials: Credentials,
+    pool: &PgPool,
 ) -> Result<uuid::Uuid, AuthError> {
     let user_db = get_user(pool, &received_credentials.username)
         .await

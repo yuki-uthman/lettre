@@ -1,5 +1,5 @@
 //! src/routes/newsletters.rs
-use crate::authenticate::{self, authenticate, Credentials};
+use crate::authenticate::{self, validate_credentials, Credentials};
 use crate::domain::Person as Subscriber;
 use crate::{email::Brevo, routes::error_chain_fmt};
 use actix_web::http::{
@@ -71,7 +71,7 @@ pub async fn publish(
 
     tracing::Span::current().record("username", &tracing::field::display(&credentials.username));
 
-    let user_id = authenticate(&pool, credentials)
+    let user_id = validate_credentials(credentials, &pool)
         .await
         .map_err(|e| match e {
             authenticate::AuthError::InvalidCredentials(e) => PublishError::AuthError(e),
