@@ -4,7 +4,7 @@ use crate::{
     routes::error_chain_fmt,
 };
 use actix_web::{web, HttpResponse, ResponseError};
-use reqwest::{StatusCode, header::LOCATION};
+use reqwest::{header::LOCATION, StatusCode};
 use sqlx::PgPool;
 
 #[derive(thiserror::Error)]
@@ -23,8 +23,9 @@ impl std::fmt::Debug for LoginError {
 
 impl ResponseError for LoginError {
     fn error_response(&self) -> HttpResponse {
+        let encoded_error = urlencoding::Encoded::new(self.to_string());
         HttpResponse::build(self.status_code())
-            .insert_header((LOCATION, "/login"))
+            .insert_header((LOCATION, format!("/login?error={}", encoded_error)))
             .finish()
     }
 
