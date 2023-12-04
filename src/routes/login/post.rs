@@ -3,8 +3,9 @@ use crate::{
     authenticate::{validate_credentials, AuthError, Credentials},
     routes::error_chain_fmt,
 };
-use actix_web::{web, HttpResponse, ResponseError};
-use reqwest::{header::LOCATION, StatusCode};
+use actix_web::{error::InternalError, web, HttpResponse};
+use hmac::{Hmac, Mac};
+use reqwest::header::LOCATION;
 use sqlx::PgPool;
 
 #[derive(thiserror::Error)]
@@ -21,19 +22,6 @@ impl std::fmt::Debug for LoginError {
     }
 }
 
-impl ResponseError for LoginError {
-    fn error_response(&self) -> HttpResponse {
-        let encoded_error = urlencoding::Encoded::new(self.to_string());
-        HttpResponse::build(self.status_code())
-            .insert_header((LOCATION, format!("/login?error={}", encoded_error)))
-            .finish()
-    }
-
-    fn status_code(&self) -> StatusCode {
-        StatusCode::SEE_OTHER
-    }
-}
-
 #[tracing::instrument(
     name = "Login a user",
     skip(form, pool),
@@ -44,7 +32,7 @@ impl ResponseError for LoginError {
 pub async fn login(
     form: web::Form<Credentials>,
     pool: web::Data<PgPool>,
-) -> Result<HttpResponse, LoginError> {
+) -> Result<HttpResponse, InternalError<LoginError>> {
     let credentials = form.into_inner();
     tracing::Span::current().record("username", &tracing::field::display(&credentials.username));
 
@@ -56,9 +44,28 @@ pub async fn login(
                 .insert_header(("Location", "/"))
                 .finish())
         }
-        Err(error) => match error {
-            AuthError::InvalidCredentials(_) => Err(LoginError::AuthError(error.into())),
-            AuthError::UnexpectedError(_) => Err(LoginError::UnexpectedError(error.into())),
-        },
+        Err(error) => {
+            let error = match error {
+                AuthError::InvalidCredentials(_) => LoginError::AuthError(error.into()),
+                AuthError::UnexpectedError(_) => LoginError::UnexpectedError(error.into()),
+            };
+
+            let encoded_error = urlencoding::Encoded::new(error.to_string());
+            let query_string = format!("?error={}", encoded_error);
+
+            let secret = "my_secret".to_string().into_bytes();
+            let hmac_tag = {
+                let mut mac = Hmac::<sha2::Sha256>::new_from_slice(&secret).unwrap();
+                mac.update(query_string.as_bytes());
+                mac.finalize().into_bytes()
+            };
+
+            let redirect_url = format!("/login?{}&tag={:x}", query_string, hmac_tag);
+            let response = HttpResponse::SeeOther()
+                .insert_header((LOCATION, redirect_url))
+                .finish();
+
+            Err(InternalError::from_response(error, response))
+        }
     }
 }
