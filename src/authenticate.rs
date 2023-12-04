@@ -45,18 +45,27 @@ pub async fn validate_credentials(
         }
     };
 
-    spawn_blocking_with_tracing(move || {
+    let verified = spawn_blocking_with_tracing(move || {
         verify_password(received_credentials.password, password_hash)
     })
     .await
     .context("Failed to spawn blocking thread")
     .map_err(AuthError::UnexpectedError)?
-    .context("Failed to verify password")
-    .map_err(AuthError::InvalidCredentials)?;
+    .map_err(AuthError::InvalidCredentials);
 
-    user_id
-        .ok_or_else(|| anyhow::anyhow!("User not found"))
-        .map_err(AuthError::InvalidCredentials)
+    if user_id.is_none() {
+        let msg = format!(
+            "User not found in the database: {}",
+            received_credentials.username
+        );
+        tracing::warn!(warning = &msg);
+        return Err(AuthError::InvalidCredentials(anyhow::anyhow!(msg)));
+    }
+
+    match verified {
+        Ok(()) => Ok(user_id.unwrap()),
+        Err(e) => Err(e),
+    }
 }
 
 struct User {
