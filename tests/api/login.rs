@@ -1,6 +1,6 @@
 //! tests/api/login.rs
 
-use crate::helpers::setup;
+use crate::helpers::{setup, assert_is_redirect_to};
 use uuid::Uuid;
 
 #[tokio::test]
@@ -19,5 +19,5 @@ async fn user_non_existing_is_rejected() {
     let response = app.post_login(&form).await;
 
     // Assert
-    assert_eq!(response.status().as_u16(), 303);
+    assert_is_redirect_to(&response, "/login");
 }
