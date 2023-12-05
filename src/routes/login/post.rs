@@ -1,11 +1,9 @@
 //! src/routes/login/post.rs
 use crate::{
     authenticate::{validate_credentials, AuthError, Credentials},
-    configuration::HmacSecret,
     routes::error_chain_fmt,
 };
 use actix_web::{error::InternalError, web, HttpResponse};
-use hmac::{Hmac, Mac};
 use reqwest::header::LOCATION;
 use sqlx::PgPool;
 
