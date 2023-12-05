@@ -1,10 +1,10 @@
 //! tests/api/login.rs
 
-use crate::helpers::{setup, assert_is_redirect_to};
+use crate::helpers::{assert_is_redirect_to, setup};
 use uuid::Uuid;
 
 #[tokio::test]
-async fn user_non_existing_is_rejected() {
+async fn an_error_flash_message_is_set_on_failure() {
     // Arrange
     let app = setup().await;
     // Random credentials
@@ -20,4 +20,11 @@ async fn user_non_existing_is_rejected() {
 
     // Assert
     assert_is_redirect_to(&response, "/login");
+
+    match response.cookies().find(|c| c.name() == "_flash") {
+        Some(flash_cookie) => {
+            assert_eq!(flash_cookie.value(), "Authentication failed");
+        }
+        None => panic!("Flash cookie not found"),
+    };
 }
