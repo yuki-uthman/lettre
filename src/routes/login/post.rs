@@ -32,7 +32,6 @@ impl std::fmt::Debug for LoginError {
 )]
 pub async fn login(
     form: web::Form<Credentials>,
-    hmac_secret: web::Data<HmacSecret>,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, InternalError<LoginError>> {
     let credentials = form.into_inner();
@@ -52,20 +51,8 @@ pub async fn login(
                 AuthError::UnexpectedError(_) => LoginError::UnexpectedError(error.into()),
             };
 
-            let encoded_error = urlencoding::Encoded::new(error.to_string());
-            let query_string = format!("error={}", encoded_error);
-
-            let hmac_tag = {
-                let mut mac =
-                    Hmac::<sha2::Sha256>::new_from_slice(hmac_secret.into_inner().as_bytes())
-                        .unwrap();
-                mac.update(query_string.as_bytes());
-                mac.finalize().into_bytes()
-            };
-
-            let redirect_url = format!("/login?{}&tag={:x}", query_string, hmac_tag);
             let response = HttpResponse::SeeOther()
-                .insert_header((LOCATION, redirect_url))
+                .insert_header((LOCATION, "/login"))
                 .finish();
 
             Err(InternalError::from_response(error, response))
