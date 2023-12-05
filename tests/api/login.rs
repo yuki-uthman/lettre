@@ -16,14 +16,8 @@ async fn user_non_existing_is_rejected() {
         ("password", password.as_str()),
     ];
 
-    let response = reqwest::Client::new()
-        .post(&format!("{}/login", &app.address))
-        .header("Content-Type", "application/x-www-form-urlencoded")
-        .form(&form)
-        .send()
-        .await
-        .expect("Failed to execute request.");
+    let response = app.post_login(&form).await;
 
     // Assert
-    assert_eq!(200, response.status().as_u16());
+    assert_eq!(response.status().as_u16(), 303);
 }
