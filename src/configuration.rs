@@ -28,9 +28,13 @@ pub struct DatabaseSettings {
 }
 
 #[derive(Deserialize, Clone, Debug)]
+pub struct HmacSecret(pub Secret<String>);
+
+#[derive(Deserialize, Clone, Debug)]
 pub struct ApplicationSettings {
     pub port: u16,
     pub host: String,
+    pub hmac_secret: Option<HmacSecret>,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -113,14 +117,17 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
     let mut settings: Settings = settings.try_deserialize()?;
 
     if environment == Environment::Local {
-        let email_file_path = configuration_directory.join("email");
-        dotenvy::from_filename(email_file_path).expect("Failed to read email settings file");
+        let secret_file_path = configuration_directory.join("secrets");
+        dotenvy::from_filename(secret_file_path).expect("Failed to read secrets file");
     }
 
     let email_settings = envy::prefixed("EMAIL_CLIENT_")
         .from_env::<EmailSettings>()
         .expect("Failed to parse email settings from environment");
     settings.email = Some(email_settings);
+
+    let hmac_secret = std::env::var("HMAC_SECRET").expect("HMAC_SECRET must be set");
+    settings.application.hmac_secret = Some(HmacSecret(Secret::new(hmac_secret)));
 
     Ok(settings)
 }

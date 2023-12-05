@@ -1,5 +1,5 @@
 //! src/startup.rs
-use crate::configuration::Settings;
+use crate::configuration::{HmacSecret, Settings};
 use crate::email::Brevo;
 use crate::routes::newsletters;
 use crate::routes::{confirm, health_check, home, login, login_form, subscribe};
@@ -34,7 +34,9 @@ pub fn build(config: Settings) -> Result<Application, std::io::Error> {
 
     let email_client = Brevo::from(config.email.unwrap());
 
-    let server = run(tcp_listener, connection, email_client)?;
+    let hmac_secret = config.application.hmac_secret.expect("Missing HMAC secret");
+
+    let server = run(tcp_listener, connection, email_client, hmac_secret)?;
 
     Ok(Application { port, server })
 }
@@ -43,9 +45,11 @@ pub fn run(
     listener: TcpListener,
     connection: PgPool,
     email_client: Brevo,
+    hmac_secret: HmacSecret,
 ) -> Result<Server, std::io::Error> {
     let connection = web::Data::new(connection);
     let email_client = web::Data::new(email_client);
+    let hmac_secret = web::Data::new(hmac_secret);
 
     let server = HttpServer::new(move || {
         App::new()
@@ -60,6 +64,7 @@ pub fn run(
             .route("/login", web::post().to(login))
             .app_data(connection.clone())
             .app_data(email_client.clone())
+            .app_data(hmac_secret.clone())
     })
     .listen(listener)?
     .run();
