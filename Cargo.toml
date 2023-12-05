@@ -21,7 +21,7 @@ tracing-actix-web = "0.5"
 unicode-segmentation = "1.7.1"
 validator = "0.14"
 lettre = "0.11.1"
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { version = "0.11", features = ["json", "cookies"] }
 serde_json = "1.0.108"
 dotenvy = "0.15.7"
 envy = "0.4"
