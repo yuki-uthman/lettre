@@ -30,6 +30,12 @@ pub struct DatabaseSettings {
 #[derive(Deserialize, Clone, Debug)]
 pub struct HmacSecret(pub Secret<String>);
 
+impl HmacSecret {
+    pub fn as_bytes(&self) -> &[u8] {
+        self.0.expose_secret().as_bytes()
+    }
+}
+
 #[derive(Deserialize, Clone, Debug)]
 pub struct ApplicationSettings {
     pub port: u16,
