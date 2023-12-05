@@ -75,6 +75,7 @@ jobs:
           EMAIL_CLIENT_SENDER_EMAIL: ${{ secrets.EMAIL_CLIENT_SENDER_EMAIL }}
           EMAIL_CLIENT_API_URL: ${{ secrets.EMAIL_CLIENT_API_URL }}
           EMAIL_CLIENT_API_KEY: ${{ secrets.EMAIL_CLIENT_API_KEY }}
+          HMAC_SECRET: ${{ secrets.HMAC_SECRET }}
 
   # `fmt` container job
   fmt:
@@ -163,3 +164,4 @@ jobs:
           EMAIL_CLIENT_SENDER_EMAIL: ${{ secrets.EMAIL_CLIENT_SENDER_EMAIL }}
           EMAIL_CLIENT_API_URL: ${{ secrets.EMAIL_CLIENT_API_URL }}
           EMAIL_CLIENT_API_KEY: ${{ secrets.EMAIL_CLIENT_API_KEY }}
+          HMAC_SECRET: ${{ secrets.HMAC_SECRET }}
