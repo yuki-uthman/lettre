@@ -169,7 +169,7 @@ pub async fn setup() -> Test {
     tracing::info!("Test running with the following Settings:\n{:#?}", config);
 
     // Launch the server as a background task
-    let _ = tokio::spawn(app.run());
+    tokio::spawn(app.run());
 
     Test {
         address,
@@ -185,7 +185,7 @@ pub fn extract_link_path(s: &str) -> String {
         .filter(|link| *link.kind() == linkify::LinkKind::Url)
         .collect();
 
-    if links.len() == 0 {
+    if links.is_empty() {
         panic!("No links found in email.");
     }
 
