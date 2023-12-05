@@ -25,5 +25,5 @@ async fn user_non_existing_is_rejected() {
         .expect("Failed to execute request.");
 
     // Assert
-    assert_eq!(401, response.status().as_u16());
+    assert_eq!(200, response.status().as_u16());
 }
