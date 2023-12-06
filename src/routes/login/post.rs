@@ -24,13 +24,14 @@ impl std::fmt::Debug for LoginError {
 
 #[tracing::instrument(
     name = "Login a user",
-    skip(form, pool),
+    skip(form, session, pool),
     fields(
         username=tracing::field::Empty,
         user_id=tracing::field::Empty)
 )]
 pub async fn login(
     form: web::Form<Credentials>,
+    session: actix_session::Session,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, InternalError<LoginError>> {
     let credentials = form.into_inner();
@@ -39,6 +40,10 @@ pub async fn login(
     match validate_credentials(credentials, pool.as_ref()).await {
         Ok(user_id) => {
             tracing::Span::current().record("user_id", &tracing::field::display(&user_id));
+
+            session
+                .insert("user_id", user_id)
+                .map_err(|e| login_redirect(LoginError::UnexpectedError(e.into())))?;
 
             Ok(HttpResponse::SeeOther()
                 .insert_header(("Location", "/admin/dashboard"))
@@ -58,4 +63,12 @@ pub async fn login(
             Err(InternalError::from_response(error, response))
         }
     }
+}
+
+fn login_redirect(e: LoginError) -> InternalError<LoginError> {
+    FlashMessage::error(e.to_string()).send();
+    let response = HttpResponse::SeeOther()
+        .insert_header((LOCATION, "/login"))
+        .finish();
+    InternalError::from_response(e, response)
 }
