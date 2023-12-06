@@ -33,17 +33,31 @@ pub struct Test {
     pub db_pool: PgPool,
     pub email_server: MockServer,
     pub user: User,
+    pub client: reqwest::Client,
 }
 
 impl Test {
     pub async fn get(&self, path: &str) -> reqwest::Response {
-        reqwest::get(&format!("{}{}", self.address, path))
+        self.client
+            .get(&format!("{}{}", self.address, path))
+            .send()
             .await
             .expect("Failed to execute request.")
     }
 
+    pub async fn get_login_html(&self) -> String {
+        self.client
+            .get(&format!("{}/login", &self.address))
+            .send()
+            .await
+            .expect("Failed to execute request.")
+            .text()
+            .await
+            .unwrap()
+    }
+
     pub async fn post(&self, path: &str, body: String) -> reqwest::Response {
-        reqwest::Client::new()
+        self.client
             .post(&format!("{}{}", self.address, path))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(body)
@@ -53,7 +67,7 @@ impl Test {
     }
 
     pub async fn post_newsletter(&self, body: serde_json::Value) -> reqwest::Response {
-        reqwest::Client::new()
+        self.client
             .post(&format!("{}/newsletters", self.address))
             .header("Content-Type", "application/json")
             .basic_auth(&self.user.username, Some(&self.user.password))
@@ -67,10 +81,7 @@ impl Test {
     where
         Body: serde::Serialize,
     {
-        reqwest::ClientBuilder::new()
-            .redirect(reqwest::redirect::Policy::none())
-            .build()
-            .unwrap()
+        self.client
             .post(&format!("{}/login", &self.address))
             // This `reqwest` method makes sure that the body is URL-encoded
             // and the `Content-Type` header is set accordingly.
@@ -178,6 +189,13 @@ pub async fn setup() -> Test {
     let email_server = MockServer::start().await;
     config.set_email_url(email_server.uri());
 
+    // Create HTTP client
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .cookie_store(true)
+        .build()
+        .unwrap();
+
     // Launch the server
     let app = build(config.clone()).expect("Failed to build server.");
     let address = format!("http://127.0.0.1:{}", app.port());
@@ -193,6 +211,7 @@ pub async fn setup() -> Test {
         db_pool,
         email_server,
         user,
+        client,
     }
 }
 
