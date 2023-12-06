@@ -56,6 +56,26 @@ impl Test {
             .unwrap()
     }
 
+    pub async fn get_admin_dashboard(&self) -> String {
+        self.client
+            .get(&format!("{}/admin/dashboard", &self.address))
+            .send()
+            .await
+            .expect("Failed to execute request.")
+            .text()
+            .await
+            .unwrap()
+    }
+
+    pub async fn login(&self) -> reqwest::Response {
+        let form = [
+            ("username", &self.user.username),
+            ("password", &self.user.password),
+        ];
+
+        self.post_login(&form).await
+    }
+
     pub async fn post(&self, path: &str, body: String) -> reqwest::Response {
         self.client
             .post(&format!("{}{}", self.address, path))
