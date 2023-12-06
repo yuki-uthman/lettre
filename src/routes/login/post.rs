@@ -41,7 +41,7 @@ pub async fn login(
             tracing::Span::current().record("user_id", &tracing::field::display(&user_id));
 
             Ok(HttpResponse::SeeOther()
-                .insert_header(("Location", "/"))
+                .insert_header(("Location", "/admin/dashboard"))
                 .finish())
         }
         Err(error) => {
