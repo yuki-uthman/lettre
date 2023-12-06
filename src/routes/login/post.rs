@@ -4,6 +4,7 @@ use crate::{
     routes::error_chain_fmt,
 };
 use actix_web::{error::InternalError, web, HttpResponse};
+use actix_web_flash_messages::FlashMessage;
 use reqwest::header::LOCATION;
 use sqlx::PgPool;
 
@@ -49,9 +50,9 @@ pub async fn login(
                 AuthError::UnexpectedError(_) => LoginError::UnexpectedError(error.into()),
             };
 
+            FlashMessage::error(error.to_string()).send();
             let response = HttpResponse::SeeOther()
                 .insert_header((LOCATION, "/login"))
-                .insert_header(("Set-Cookie", format!("_flash={error}")))
                 .finish();
 
             Err(InternalError::from_response(error, response))
