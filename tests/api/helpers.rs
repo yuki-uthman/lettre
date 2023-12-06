@@ -197,7 +197,9 @@ pub async fn setup() -> Test {
         .unwrap();
 
     // Launch the server
-    let app = build(config.clone()).expect("Failed to build server.");
+    let app = build(config.clone())
+        .await
+        .expect("Failed to build server.");
     let address = format!("http://127.0.0.1:{}", app.port());
     config.application.port = app.port();
 

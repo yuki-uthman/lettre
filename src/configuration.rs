@@ -40,6 +40,7 @@ impl HmacSecret {
 pub struct ApplicationSettings {
     pub port: u16,
     pub host: String,
+    pub redis_uri: Secret<String>,
     pub hmac_secret: Option<HmacSecret>,
 }
 
