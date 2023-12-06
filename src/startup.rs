@@ -1,7 +1,7 @@
 //! src/startup.rs
 use crate::configuration::{HmacSecret, Settings};
 use crate::email::Brevo;
-use crate::routes::{newsletters, admin_dashboard};
+use crate::routes::{admin_dashboard, newsletters};
 use crate::routes::{confirm, health_check, home, login, login_form, subscribe};
 use actix_session::storage::RedisSessionStore;
 use actix_session::SessionMiddleware;
