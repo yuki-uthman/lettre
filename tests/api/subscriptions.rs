@@ -13,7 +13,7 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
 
     // Act
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
-    let response = test.post("/subscriptions", body.into()).await;
+    let response = test.post_body("/subscriptions", body.into()).await;
 
     // Assert
     assert_eq!(200, response.status().as_u16());
@@ -26,7 +26,7 @@ async fn subscribe_persists_the_new_subscriber() {
 
     // Act
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
-    let _ = test.post("/subscriptions", body.into()).await;
+    let _ = test.post_body("/subscriptions", body.into()).await;
 
     // Assert
     let saved = sqlx::query!("SELECT email, name, status FROM subscriptions",)
@@ -53,7 +53,7 @@ async fn subscribe_sends_email_for_valid_form_data() {
 
     // Act
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
-    let response = test.post("/subscriptions", body.into()).await;
+    let response = test.post_body("/subscriptions", body.into()).await;
 
     // Assert
     assert_eq!(200, response.status().as_u16());
@@ -73,7 +73,7 @@ async fn subscribe_sends_email_with_a_link() {
 
     // Act
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
-    let _ = test.post("/subscriptions", body.into()).await;
+    let _ = test.post_body("/subscriptions", body.into()).await;
 
     // Assert
     let email = test.received_email().await;
@@ -93,7 +93,7 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
 
     for (body, error_message) in test_cases {
         // Act
-        let response = test.post("/subscriptions", body.into()).await;
+        let response = test.post_body("/subscriptions", body.into()).await;
 
         // Assert
         assert_eq!(
@@ -120,7 +120,7 @@ async fn subscribe_returns_a_400_when_name_is_invalid() {
 
     for (body, error_message) in test_cases {
         // Act
-        let response = test.post("/subscriptions", body.into()).await;
+        let response = test.post_body("/subscriptions", body.into()).await;
 
         // Assert
         assert_eq!(
@@ -144,7 +144,7 @@ async fn subscribe_returns_a_400_when_email_is_invalid() {
 
     for (body, error_message) in test_cases {
         // Act
-        let response = test.post("/subscriptions", body.into()).await;
+        let response = test.post_body("/subscriptions", body.into()).await;
 
         // Assert
         assert_eq!(
@@ -170,7 +170,7 @@ async fn subscribe_fails_if_sth_wrong_with_subscriptions_table() {
         .unwrap();
 
     // Act
-    let response = app.post("/subscriptions", body.into()).await;
+    let response = app.post_body("/subscriptions", body.into()).await;
 
     // Assert
     assert_eq!(response.status().as_u16(), 500);
@@ -189,7 +189,7 @@ async fn subscribe_fails_if_sth_wrong_with_subscriptions_token_table() {
         .unwrap();
 
     // Act
-    let response = app.post("/subscriptions", body.into()).await;
+    let response = app.post_body("/subscriptions", body.into()).await;
 
     // Assert
     assert_eq!(response.status().as_u16(), 500);
@@ -202,7 +202,7 @@ async fn subscribe_fails_if_sth_wrong_with_name() {
     let body = "name=le%20guin%7B&email=ursula_le_guin@gmail.com";
 
     // Act
-    let response = app.post("/subscriptions", body.into()).await;
+    let response = app.post_body("/subscriptions", body.into()).await;
 
     // Assert
     assert_eq!(response.status().as_u16(), 400);
@@ -215,7 +215,7 @@ async fn subscribe_fails_if_sth_wrong_with_email() {
     let body = "name=le%20guin&email=ursula_le_guin";
 
     // Act
-    let response = app.post("/subscriptions", body.into()).await;
+    let response = app.post_body("/subscriptions", body.into()).await;
 
     // Assert
     assert_eq!(response.status().as_u16(), 400);

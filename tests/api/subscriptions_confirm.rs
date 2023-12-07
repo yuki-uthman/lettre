@@ -32,7 +32,7 @@ async fn link_returns_a_200_if_clicked() {
 
     // Act
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
-    let _ = test.post("/subscriptions", body.into()).await;
+    let _ = test.post_body("/subscriptions", body.into()).await;
 
     // Assert
     let email = test.received_email().await;
@@ -57,7 +57,7 @@ async fn clicking_the_link_confirms_the_subscription() {
 
     // Act
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
-    let _ = test.post("/subscriptions", body.into()).await;
+    let _ = test.post_body("/subscriptions", body.into()).await;
 
     // Assert
     let email = test.received_email().await;

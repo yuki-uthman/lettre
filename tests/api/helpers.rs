@@ -37,48 +37,38 @@ pub struct Test {
 }
 
 impl Test {
+    fn get_request(&self, path: &str) -> reqwest::RequestBuilder {
+        self.client.get(format!("{}{}", self.address, path))
+    }
+
     pub async fn get(&self, path: &str) -> reqwest::Response {
-        self.client
-            .get(&format!("{}{}", self.address, path))
-            .send()
-            .await
-            .expect("Failed to execute request.")
+        let msg = format!("Failed to execute GET request to {}", path);
+
+        self.get_request(path).send().await.expect(&msg)
     }
 
-    pub async fn get_login_html(&self) -> String {
-        self.client
-            .get(&format!("{}/login", &self.address))
-            .send()
+    pub async fn get_text(&self, path: &str) -> String {
+        self.get(path)
             .await
-            .expect("Failed to execute request.")
             .text()
             .await
-            .unwrap()
+            .expect("Failed to get text response")
     }
 
-    pub async fn get_admin_dashboard(&self) -> String {
-        self.client
-            .get(&format!("{}/admin/dashboard", &self.address))
-            .send()
-            .await
-            .expect("Failed to execute request.")
-            .text()
-            .await
-            .unwrap()
+    pub async fn login(&self, username: &str, password: &str) -> reqwest::Response {
+        let form = [("username", username), ("password", password)];
+
+        self.post_form("/login", &form).await
     }
 
-    pub async fn login(&self) -> reqwest::Response {
-        let form = [
-            ("username", &self.user.username),
-            ("password", &self.user.password),
-        ];
-
-        self.post_login(&form).await
+    fn post_request(&self, path: &str) -> reqwest::RequestBuilder {
+        self.client.post(format!("{}{}", self.address, path))
     }
 
-    pub async fn post(&self, path: &str, body: String) -> reqwest::Response {
-        self.client
-            .post(&format!("{}{}", self.address, path))
+    /// similar to post form but this is used to send ill-formatted body
+    // /not possible with form
+    pub async fn post_body(&self, path: &str, body: String) -> reqwest::Response {
+        self.post_request(path)
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(body)
             .send()
@@ -87,8 +77,7 @@ impl Test {
     }
 
     pub async fn post_newsletter(&self, body: serde_json::Value) -> reqwest::Response {
-        self.client
-            .post(&format!("{}/newsletters", self.address))
+        self.post_request("/newsletters")
             .header("Content-Type", "application/json")
             .basic_auth(&self.user.username, Some(&self.user.password))
             .json(&body)
@@ -97,15 +86,12 @@ impl Test {
             .expect("Failed to execute request.")
     }
 
-    pub async fn post_login<Body>(&self, body: &Body) -> reqwest::Response
+    pub async fn post_form<T>(&self, path: &str, form: &T) -> reqwest::Response
     where
-        Body: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
-        self.client
-            .post(&format!("{}/login", &self.address))
-            // This `reqwest` method makes sure that the body is URL-encoded
-            // and the `Content-Type` header is set accordingly.
-            .form(body)
+        self.post_request(path)
+            .form(&form)
             .send()
             .await
             .expect("Failed to execute request.")

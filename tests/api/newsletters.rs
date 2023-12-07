@@ -20,7 +20,7 @@ async fn create_unconfirmed_subscriber(app: &Test) -> Email {
         .mount_as_scoped(&app.email_server)
         .await;
 
-    app.post("/subscriptions", body.into()).await;
+    app.post_body("/subscriptions", body.into()).await;
 
     app.received_email().await
 }
