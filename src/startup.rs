@@ -66,7 +66,8 @@ pub async fn run(
     let email_client = web::Data::new(email_client);
     let hmac_secret = web::Data::new(hmac_secret);
 
-    let secret_key = Key::from(hmac_secret.0.expose_secret().as_bytes());
+    let secret_key = Key::try_from(hmac_secret.0.expose_secret().as_bytes())
+        .expect("Error creating key from HMAC secret");
     let message_store = CookieMessageStore::builder(secret_key.clone()).build();
     let message_framework = FlashMessagesFramework::builder(message_store).build();
 
