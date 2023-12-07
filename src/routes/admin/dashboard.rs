@@ -1,6 +1,6 @@
 //! src/routes/admin/dashboard.rs
 
-use actix_session::Session;
+use crate::session_state::TypedSession;
 use actix_web::{http::header::ContentType, web, HttpResponse};
 use anyhow::Context;
 use uuid::Uuid;
@@ -14,10 +14,10 @@ where
 }
 
 pub async fn admin_dashboard(
-    session: Session,
+    session: TypedSession,
     pool: web::Data<sqlx::PgPool>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let user_id_from_session = session.get::<Uuid>("user_id").map_err(e500)?;
+    let user_id_from_session = session.get_user_id().map_err(e500)?;
 
     if user_id_from_session.is_none() {
         return Ok(HttpResponse::SeeOther()

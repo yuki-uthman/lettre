@@ -2,6 +2,7 @@
 use crate::{
     authenticate::{validate_credentials, AuthError, Credentials},
     routes::error_chain_fmt,
+    session_state::TypedSession,
 };
 use actix_web::{error::InternalError, web, HttpResponse};
 use actix_web_flash_messages::FlashMessage;
@@ -31,7 +32,7 @@ impl std::fmt::Debug for LoginError {
 )]
 pub async fn login(
     form: web::Form<Credentials>,
-    session: actix_session::Session,
+    session: TypedSession,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, InternalError<LoginError>> {
     let credentials = form.into_inner();
@@ -41,8 +42,9 @@ pub async fn login(
         Ok(user_id) => {
             tracing::Span::current().record("user_id", &tracing::field::display(&user_id));
 
+            session.renew();
             session
-                .insert("user_id", user_id)
+                .insert_user_id(user_id)
                 .map_err(|e| login_redirect(LoginError::UnexpectedError(e.into())))?;
 
             Ok(HttpResponse::SeeOther()
