@@ -17,7 +17,8 @@ mod login;
 pub use login::*;
 
 mod admin;
-pub use admin::*;
+pub use admin::admin_dashboard;
+pub use admin::change_password_form;
 
 fn error_chain_fmt(
     e: &impl std::error::Error,

@@ -2,7 +2,7 @@
 use crate::configuration::{HmacSecret, Settings};
 use crate::email::Brevo;
 use crate::routes::{admin_dashboard, newsletters};
-use crate::routes::{confirm, health_check, home, login, login_form, subscribe};
+use crate::routes::{confirm, health_check, home, login, login_form, subscribe, change_password_form};
 use actix_session::storage::RedisSessionStore;
 use actix_session::SessionMiddleware;
 use actix_web::cookie::Key;
@@ -90,6 +90,7 @@ pub async fn run(
             .route("/login", web::get().to(login_form))
             .route("/login", web::post().to(login))
             .route("/admin/dashboard", web::get().to(admin_dashboard))
+            .route("/admin/password", web::get().to(change_password_form))
             .app_data(connection.clone())
             .app_data(email_client.clone())
             .app_data(hmac_secret.clone())
