@@ -18,6 +18,7 @@ pub use login::*;
 
 mod admin;
 pub use admin::admin_dashboard;
+pub use admin::change_password;
 pub use admin::change_password_form;
 
 fn error_chain_fmt(
